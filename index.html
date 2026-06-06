@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpsDesk — Task Tracker & Analytics</title>
+    <title>OpsDesk — Task Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
     <style>
@@ -95,43 +95,6 @@
         .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 500; }
         .stat-value { font-size: 26px; font-weight: 600; font-family: var(--mono); margin-top: 4px; }
 
-        /* Analytics Visual Grid Modules */
-        .analytics-split-row { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-bottom: 24px; }
-        .chart-panel-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
-        .chart-header { margin-bottom: 20px; }
-        .chart-header h4 { font-size: 14px; font-weight: 600; color: var(--text); }
-        .chart-header p { font-size: 12px; color: var(--text-muted); }
-        
-        /* Bar Graph Components */
-        .bar-chart-container { display: flex; align-items: flex-end; gap: 24px; height: 200px; padding-top: 10px; position: relative; border-bottom: 1px solid var(--border-med); }
-        .bar-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; position: relative; }
-        .bar-pillar-group { width: 32px; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; gap: 2px; }
-        .bar-segment { width: 100%; transition: height 0.4s ease; border-radius: 3px 3px 0 0; position: relative; }
-        .bar-segment.seg-completed { background: var(--green); }
-        .bar-segment.seg-pending { background: var(--red-dim); border: 1px solid rgba(244,63,94,0.3); }
-        .bar-label-caption { font-size: 11px; color: var(--text-muted); margin-top: 8px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-weight: 500; }
-        .chart-tooltip-bubble { position: absolute; top: -28px; background: #000; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: var(--mono); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 10; border: 1px solid var(--border-med); }
-        .bar-wrapper:hover .chart-tooltip-bubble { opacity: 1; }
-
-        /* Distribution Metric Items */
-        .dist-list { display: flex; flex-direction: column; gap: 12px; }
-        .dist-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
-        .dist-label-group { display: flex; align-items: center; gap: 8px; }
-        .dist-dot-indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-        .dist-text-name { font-size: 13px; color: var(--text); }
-        .dist-badge-value { font-family: var(--mono); font-size: 12px; color: var(--text-muted); background: var(--bg-input); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border); }
-
-        /* Progress List Framework */
-        .progress-list-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; margin-bottom: 24px; }
-        .progress-row-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
-        .progress-row-item:last-child { border-bottom: none; }
-        .prog-user-meta { width: 220px; min-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 13px; }
-        .prog-track-bar-outer { flex: 1; height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden; margin: 0 24px; position: relative; }
-        .prog-track-bar-inner { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); border-radius: 3px; width: 0%; transition: width 0.5s ease; }
-        .prog-stats-metric { width: 140px; text-align: right; font-family: var(--mono); font-size: 12px; display: flex; justify-content: flex-end; gap: 12px; }
-        .prog-percentage { font-weight: 600; color: var(--text); }
-        .prog-fraction { color: var(--text-muted); }
-
         .task-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 24px; }
         .task-panel-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
         .tbl-wrap { overflow-x: auto; }
@@ -207,8 +170,7 @@
         </div>
         <nav class="sidebar-nav">
             <span class="nav-section-title">Navigation</span>
-            <button id="nav-btn-analytics" class="nav-item active" onclick="switchSubView('analytics')">Dashboard Overview</button>
-            <button id="nav-btn-pipeline" class="nav-item" onclick="switchSubView('pipeline')">All Tasks Pipeline</button>
+            <button id="nav-btn-pipeline" class="nav-item active" onclick="switchSubView('pipeline')">Operational Pipeline</button>
             <button id="nav-btn-users" class="nav-item hidden" onclick="switchSubView('users')">User Management</button>
         </nav>
         <div class="sidebar-footer">
@@ -228,62 +190,31 @@
     <div class="main-content">
         <div class="topbar">
             <div>
-                <div class="topbar-title" id="topbar-title">Dashboard Overview</div>
-                <div class="topbar-sub" id="topbar-sub">Operations overview & analytics (Mon - Sat PH Time)</div>
+                <div class="topbar-title" id="topbar-title">Pipeline Monitor</div>
+                <div class="topbar-sub" id="topbar-sub">Real-time task control index (Mon - Sat PH Time)</div>
             </div>
         </div>
 
-        <div id="subview-analytics" class="page-body">
+        <div id="subview-pipeline" class="page-body">
             <div class="stats-grid">
                 <div class="stat-card stat-blue">
-                    <div class="stat-label">Total Tasks</div>
-                    <div class="stat-value" id="an-total">0</div>
+                    <div class="stat-label">Total Volume</div>
+                    <div class="stat-value" id="count-total">0</div>
                 </div>
                 <div class="stat-card stat-green">
-                    <div class="stat-label">Completed</div>
-                    <div class="stat-value" id="an-completed">0</div>
+                    <div class="stat-label">Closed Metrics</div>
+                    <div class="stat-value" id="count-completed">0</div>
                 </div>
                 <div class="stat-card stat-red">
-                    <div class="stat-label">Pending</div>
-                    <div class="stat-value" id="an-pending">0</div>
+                    <div class="stat-label">Pending Metrics</div>
+                    <div class="stat-value" id="count-pending">0</div>
                 </div>
                 <div class="stat-card stat-amber">
-                    <div class="stat-label">Completion Rate</div>
-                    <div class="stat-value" id="an-rate">0%</div>
+                    <div class="stat-label">Efficiency Rate</div>
+                    <div class="stat-value" id="count-rate">0%</div>
                 </div>
             </div>
 
-            <div class="analytics-split-row">
-                <div class="chart-panel-card">
-                    <div class="chart-header">
-                        <h4>Task Activity — By Assignee</h4>
-                        <p>Completed vs. Pending breakdown per team member</p>
-                    </div>
-                    <div class="bar-chart-container" id="bar-chart-anchor">
-                        </div>
-                </div>
-
-                <div class="chart-panel-card">
-                    <div class="chart-header">
-                        <h4>Frequency Distribution</h4>
-                        <p>Task types across the active operational pipeline</p>
-                    </div>
-                    <div class="dist-list" id="frequency-dist-anchor">
-                        </div>
-                </div>
-            </div>
-
-            <div class="progress-list-panel">
-                <div class="chart-header" style="margin-bottom:16px;">
-                    <h4>Per-User Performance Summary</h4>
-                    <p>Completion rate execution matrix for each active team member</p>
-                </div>
-                <div id="progress-rows-anchor">
-                    </div>
-            </div>
-        </div>
-
-        <div id="subview-pipeline" class="page-body hidden">
             <div id="admin-creation-panel" class="create-form-card hidden">
                 <h3>Deploy New Operation Task</h3>
                 <div class="form-grid">
@@ -408,7 +339,6 @@
     let sessionUser = null;
     let localTasksCache = [];
     let dbUsersMap = {}; 
-    let dbUserProfilesList = []; // Caches full user profile records dynamically
     let selectedTaskIdTarget = null;
 
     function generateToast(text, statusType = 'success') {
@@ -445,29 +375,19 @@
 
     function switchSubView(view) {
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        
-        // Hide all views first
-        document.getElementById('subview-analytics').classList.add('hidden');
-        document.getElementById('subview-pipeline').classList.add('hidden');
-        document.getElementById('subview-users').classList.add('hidden');
-
-        if (view === 'analytics') {
-            document.getElementById('nav-btn-analytics').classList.add('active');
-            document.getElementById('subview-analytics').classList.remove('hidden');
-            document.getElementById('topbar-title').innerText = "Dashboard Overview";
-            document.getElementById('topbar-sub').innerText = "Operations overview & analytics (Mon - Sat PH Time)";
-            fetchPipelineData();
-        } else if (view === 'pipeline') {
+        if (view === 'pipeline') {
             document.getElementById('nav-btn-pipeline').classList.add('active');
             document.getElementById('subview-pipeline').classList.remove('hidden');
+            document.getElementById('subview-users').classList.add('hidden');
             document.getElementById('topbar-title').innerText = "Pipeline Monitor";
             document.getElementById('topbar-sub').innerText = "Real-time task control index (Mon - Sat PH Time)";
             fetchPipelineData();
         } else if (view === 'users') {
             document.getElementById('nav-btn-users').classList.add('active');
+            document.getElementById('subview-pipeline').classList.add('hidden');
             document.getElementById('subview-users').classList.remove('hidden');
             document.getElementById('topbar-title').innerText = "User Management Dashboard";
-            document.getElementById('topbar-sub').innerText = "Configure active database profiles and credentials";
+            document.getElementById('topbar-sub').innerText = "Configure and manage active database profiles, credentials, and labels";
             renderUsersManagementTable();
         }
     }
@@ -478,13 +398,11 @@
             if (error) throw error;
             
             dbUsersMap = {};
-            dbUserProfilesList = records || [];
-            
-            dbUserProfilesList.forEach(user => {
+            records.forEach(user => {
                 dbUsersMap[user.username] = user.display_name || user.username;
             });
             
-            populateDropdownOptions(dbUserProfilesList);
+            populateDropdownOptions(records);
         } catch (e) {
             console.error("Directory Sync Failed:", e);
         }
@@ -548,7 +466,7 @@
             document.getElementById('th-actions').innerText = "Actions";
         }
 
-        switchSubView('analytics');
+        switchSubView('pipeline');
     }
 
     function populateDropdownOptions(allUsers) {
@@ -570,9 +488,8 @@
             await syncSystemUsersDirectory();
             let query = _supabase.from('tasks').select('*');
 
-            // Staff see their dynamic profiles, Admin views globally
             if (sessionUser.role !== 'admin') {
-                query = query.eq('assignee', sessionUser.username);
+                query = query.eq('assignee', sessionUser.username).eq('completed', false);
             } else {
                 query = query.order('id', { ascending: false });
             }
@@ -580,14 +497,12 @@
             const { data, error } = await query;
             if (error) throw error;
 
-            // Filter out Sunday entries automatically to protect performance lines
             localTasksCache = (data || []).filter(task => {
                 const phDay = getPhilippineDayOfWeek(task.created_at);
                 return phDay >= 1 && phDay <= 6;
             });
 
             calculateMetricsSummary();
-            renderAnalyticsCharts();
             renderTableRows();
         } catch(e) {
             console.error(e);
@@ -601,102 +516,10 @@
         const open = total - closed;
         const rate = total > 0 ? Math.round((closed / total) * 100) : 0;
 
-        // Sync main pipeline tab text elements
         document.getElementById('count-total').innerText = total;
         document.getElementById('count-completed').innerText = closed;
         document.getElementById('count-pending').innerText = open;
         document.getElementById('count-rate').innerText = `${rate}%`;
-
-        // Sync dedicated core overview cards
-        document.getElementById('an-total').innerText = total;
-        document.getElementById('an-completed').innerText = closed;
-        document.getElementById('an-pending').innerText = open;
-        document.getElementById('an-rate').innerText = `${rate}%`;
-    }
-
-    function renderAnalyticsCharts() {
-        const barAnchor = document.getElementById('bar-chart-anchor');
-        const freqAnchor = document.getElementById('frequency-dist-anchor');
-        const progAnchor = document.getElementById('progress-rows-anchor');
-
-        if(!barAnchor || !freqAnchor || !progAnchor) return;
-
-        // Reset tracking content lines
-        barAnchor.innerHTML = '';
-        freqAnchor.innerHTML = '';
-        progAnchor.innerHTML = '';
-
-        // Filter out admins from tracking views
-        const staffProfilesList = dbUserProfilesList.filter(u => u.role !== 'admin');
-
-        if(staffProfilesList.length === 0) {
-            barAnchor.innerHTML = `<div style="text-align:center; width:100%; color:var(--text-muted);">No active staff users configured.</div>`;
-            progAnchor.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:10px;">No operational staff profiles.</div>`;
-        }
-
-        // 1. GENERATE USER BAR CHARTS & PROGRESS MATRICES (COMPLETELY DYNAMIC)
-        staffProfilesList.forEach(user => {
-            const userTasks = localTasksCache.filter(t => t.assignee === user.username);
-            const userTotal = userTasks.length;
-            const userClosed = userTasks.filter(t => t.completed).length;
-            const userPending = userTotal - userClosed;
-            const userPct = userTotal > 0 ? Math.round((userClosed / userTotal) * 100) : 0;
-
-            // Compute relative scaling factors to match max heights perfectly
-            const maxVolumeRef = Math.max(...staffProfilesList.map(u => localTasksCache.filter(t => t.assignee === u.username).length), 1);
-            const closedHeightPct = (userClosed / maxVolumeRef) * 100;
-            const pendingHeightPct = (userPending / maxVolumeRef) * 100;
-
-            // Inject Pillar Columns
-            const barWrapper = document.createElement('div');
-            barWrapper.className = 'bar-wrapper';
-            barWrapper.innerHTML = `
-                <div class="chart-tooltip-bubble">${user.display_name || user.username}: ${userClosed} Done / ${userPending} Pending</div>
-                <div class="bar-pillar-group">
-                    <div class="bar-segment seg-pending" style="height: ${pendingHeightPct}%"></div>
-                    <div class="bar-segment seg-completed" style="height: ${closedHeightPct}%"></div>
-                </div>
-                <div class="bar-label-caption" title="${user.display_name || user.username}">${user.display_name || user.username}</div>
-            `;
-            barAnchor.appendChild(barWrapper);
-
-            // Inject Performance Summaries with Progress Bars
-            const progRow = document.createElement('div');
-            progRow.className = 'progress-row-item';
-            progRow.innerHTML = `
-                <div class="prog-user-meta" title="${user.display_name || user.username}">${user.display_name || user.username}</div>
-                <div class="prog-track-bar-outer">
-                    <div class="prog-track-bar-inner" style="width: ${userPct}%"></div>
-                </div>
-                <div class="prog-stats-metric">
-                    <span class="prog-percentage">${userPct}%</span>
-                    <span class="prog-fraction">${userClosed}/${userTotal} done</span>
-                </div>
-            `;
-            progAnchor.appendChild(progRow);
-        });
-
-        // 2. COMPUTE FREQUENCY DISTRIBUTION CAPTURES (COMPLETELY DYNAMIC)
-        const frequencyMap = { 'One-Time': 0, 'Daily': 0, 'Weekly': 0, 'Monthly': 0 };
-        localTasksCache.forEach(task => {
-            const freqKey = task.timestamp || 'One-Time';
-            if(frequencyMap.hasOwnProperty(freqKey)) {
-                frequencyMap[freqKey]++;
-            }
-        });
-
-        Object.keys(frequencyMap).forEach(key => {
-            const distItem = document.createElement('div');
-            distItem.className = 'dist-item';
-            distItem.innerHTML = `
-                <div class="dist-label-group">
-                    <div class="dist-dot-indicator" style="background:${key==='Daily'?'var(--green)':key==='Weekly'?'var(--amber)':key==='Monthly'?'var(--red)':'var(--accent)'}"></div>
-                    <span class="dist-text-name">${key} Directives</span>
-                </div>
-                <div class="dist-badge-value">${frequencyMap[key]} Tasks</div>
-            `;
-            freqAnchor.appendChild(distItem);
-        });
     }
 
     function renderTableRows() {
@@ -832,7 +655,7 @@
         const u = document.getElementById('user-username').value.trim();
         const d = document.getElementById('user-display-name').value.trim();
         const p = document.getElementById('user-password').value.trim();
-        const r = document.getElementById('user-role').value;
+        const r = document.getElementById('user-role').value; // Evaluates properly to 'staff' or 'admin' strings
 
         if(!u || !p) {
             generateToast("Username and Password tokens are mandatory.", "error");
@@ -924,7 +747,9 @@
         }
     }
 
+    /* ── FIX FOR CLOSURE MODAL METHOD ── */
     function openClosureModal(id) {
+        // Clear out extraneous element modifiers to pass a clean integer ID
         selectedTaskIdTarget = parseInt(id); 
         document.getElementById('closure-comment').value = '';
         document.getElementById('modal-closure').classList.remove('hidden');
@@ -940,6 +765,7 @@
         const text = document.getElementById('closure-comment').value.trim() || "Operations confirmed completed.";
 
         try {
+            // Sends direct targeted single parameters to match column structures smoothly
             const { error } = await _supabase.from('tasks').update({
                 completed: true,
                 remarks: text,
