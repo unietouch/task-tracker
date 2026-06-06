@@ -17,6 +17,7 @@
             --accent-blue-hover: #1d4ed8;
             --accent-green: #10b981;
             --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
         }
 
         * {
@@ -39,7 +40,7 @@
         /* --- View Containers --- */
         .view-container {
             width: 100%;
-            max-width: 1100px;
+            max-width: 1150px;
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: 12px;
@@ -114,18 +115,6 @@
             background-color: var(--accent-blue-hover);
         }
 
-        .credential-hints {
-            margin-top: 20px;
-            font-size: 11px;
-            color: var(--text-secondary);
-            line-height: 1.6;
-            text-align: left;
-            background: rgba(255,255,255,0.02);
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-        }
-
         /* --- Dashboard Screen Styling --- */
         .dash-header {
             display: flex;
@@ -183,8 +172,8 @@
 
         .inline-form {
             display: grid;
-            grid-template-columns: 1.2fr 2fr auto;
-            gap: 16px;
+            grid-template-columns: 1fr 0.6fr 1.5fr auto;
+            gap: 12px;
             align-items: end;
         }
 
@@ -219,7 +208,7 @@
             display: inline-block;
             padding: 4px 8px;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
         }
 
@@ -231,6 +220,16 @@
         .status-complete {
             background-color: rgba(16, 185, 129, 0.15);
             color: var(--accent-green);
+        }
+
+        .freq-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            background-color: rgba(139, 92, 246, 0.15);
+            color: var(--accent-purple);
+            font-weight: 500;
         }
 
         .action-icon-btn {
@@ -321,16 +320,6 @@
         </div>
 
         <button class="btn" onclick="handleLogin()">Login</button>
-
-        <div class="credential-hints">
-            <strong>System Profiles Matrix:</strong><br>
-            • Admin: <code>admin</code> (Password: <code>admin123</code>)<br>
-            • User 1: <code>user1</code> — Outbound Logistics Analyst<br>
-            • User 2: <code>user2</code> — Inbound Logistics Analyst<br>
-            • User 3: <code>user3</code> — Inventory Control Specialist<br>
-            • User 4: <code>user4</code> — Reverse Logistics Coordinator<br>
-            • User 5: <code>user5</code> — SAP Systems Specialist
-        </div>
     </div>
 
     <div id="view-dashboard" class="view-container hidden">
@@ -354,6 +343,15 @@
                         </select>
                 </div>
                 <div class="form-group" style="margin-bottom:0;">
+                    <label for="task-frequency">Frequency</label>
+                    <select id="task-frequency" class="form-control">
+                        <option value="One-Time">One-Time</option>
+                        <option value="Daily">Daily</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="Monthly">Monthly</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
                     <label for="task-desc">Task Description & Requirements</label>
                     <input type="text" id="task-desc" class="form-control" placeholder="e.g., Run outbound audit reporting logs">
                 </div>
@@ -368,6 +366,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Assignee Team</th>
+                        <th>Frequency</th>
                         <th>Task Requirements</th>
                         <th>Status</th>
                         <th>Closing Comment Summary</th>
@@ -419,24 +418,22 @@
     </div>
 
     <script>
-        // --- CLIENT CONFIGURATION ENGINE ---
         const SUPABASE_URL = "https://vwuhpzpagmahzaqyczuw.supabase.co";
         const SUPABASE_KEY = "sb_publishable_GMw--3rEN77JEs4V1_12GA_49xoRpyG";
 
-        // Initialization call sequence using clean client instance
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let currentUser = null;
-        let currentTaskToCompleteId = null;
+        let selectedTaskRecord = null; 
 
-        // --- EXPLICIT LOGISTICS USER PROFILE NAME MATRIX ---
+        // --- CUSTOM LOGISTICS USER PROFILE NAMES ---
         const userDisplayMap = {
             'admin': 'System Administrator',
-            'user1': 'User 1 (Outbound Logistics Analyst)',
-            'user2': 'User 2 (Inbound Logistics Analyst)',
-            'user3': 'User 3 (Inventory Control Specialist)',
-            'user4': 'User 4 (Reverse Logistics Coordinator)',
-            'user5': 'User 5 (SAP Systems Specialist)'
+            'user1': 'Outbound Logistics Analyst',
+            'user2': 'Inbound Logistics Analyst',
+            'user3': 'Inventory Control Specialist',
+            'user4': 'Reverse Logistics Coordinator',
+            'user5': 'SAP Systems Specialist'
         };
 
         // --- AUTHENTICATION ENGINE ---
@@ -501,7 +498,6 @@
             renderTaskBoardData();
         }
 
-        // Dynamically build dropdown choices using the 5 explicit role variants
         function buildAdminDropdown() {
             const dropdown = document.getElementById('task-assignee');
             dropdown.innerHTML = '';
@@ -532,7 +528,7 @@
                 tableBody.innerHTML = '';
 
                 if (!tasks || tasks.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-secondary);">No tasks allocated in pipeline queue.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-secondary);">No tasks allocated in pipeline queue.</td></tr>`;
                     return;
                 }
 
@@ -540,10 +536,11 @@
                     const tr = document.createElement('tr');
                     const remarksText = task.remarks ? task.remarks : '<span style="color:var(--text-secondary); font-style:italic;">None</span>';
                     const clearName = userDisplayMap[task.assignee] || task.assignee;
+                    const frequencyText = task.timestamp ? task.timestamp : 'One-Time'; 
                     
                     let actionCellHtml = '';
                     if (!task.completed) {
-                        actionCellHtml = `<button class="action-icon-btn" onclick="openRemarksModal(${task.id})">Mark Complete</button>`;
+                        actionCellHtml = `<button class="action-icon-btn" onclick="openRemarksModal(${JSON.stringify(task)})">Mark Complete</button>`;
                     } else {
                         actionCellHtml = `<span style="color:var(--accent-green); font-weight:500;">Closed Verified</span>`;
                     }
@@ -551,6 +548,7 @@
                     tr.innerHTML = `
                         <td><strong>#${task.id}</strong></td>
                         <td><span style="color:var(--text-primary); font-weight:500;">${clearName}</span></td>
+                        <td><span class="freq-badge">${frequencyText}</span></td>
                         <td>${task.description}</td>
                         <td>
                             <span class="status-pill ${task.completed ? 'status-complete' : 'status-pending'}">
@@ -572,6 +570,7 @@
         // --- ADMIN TASK DEPLOYMENT ENGINE ---
         async function createNewTask() {
             const assignee = document.getElementById('task-assignee').value;
+            const frequency = document.getElementById('task-frequency').value;
             const description = document.getElementById('task-desc').value.trim();
 
             if (!description) {
@@ -582,7 +581,12 @@
             try {
                 const { error } = await _supabase
                     .from('tasks')
-                    .insert([{ assignee: assignee, description: description, completed: false }]);
+                    .insert([{ 
+                        assignee: assignee, 
+                        description: description, 
+                        completed: false,
+                        timestamp: frequency 
+                    }]);
 
                 if (error) throw error;
 
@@ -596,42 +600,59 @@
         }
 
         // --- REMARKS MODAL OPERATIONS ---
-        function openRemarksModal(taskId) {
-            currentTaskToCompleteId = taskId;
+        function openRemarksModal(taskObject) {
+            selectedTaskRecord = taskObject;
             document.getElementById('modal-remarks-input').value = '';
             document.getElementById('remarks-modal').classList.remove('hidden');
         }
 
         function closeRemarksModal() {
-            currentTaskToCompleteId = null;
+            selectedTaskRecord = null;
             document.getElementById('remarks-modal').classList.add('hidden');
         }
 
         async function submitTaskClosure() {
-            if (!currentTaskToCompleteId) return;
+            if (!selectedTaskRecord) return;
             const remarksValue = document.getElementById('modal-remarks-input').value.trim();
+            const finalRemarks = remarksValue ? remarksValue : 'Completed cycle verification notes appended.';
 
             try {
-                const { error } = await _supabase
+                // 1. Mark current pending instance row as true
+                const { error: updateError } = await _supabase
                     .from('tasks')
                     .update({ 
                         completed: true, 
-                        remarks: remarksValue ? remarksValue : 'Completed without verification comments.' 
+                        remarks: finalRemarks 
                     })
-                    .eq('id', currentTaskToCompleteId);
+                    .eq('id', selectedTaskRecord.id);
 
-                if (error) throw error;
+                if (updateError) throw updateError;
+
+                // 2. Schedule engine calculation check
+                if (selectedTaskRecord.timestamp && selectedTaskRecord.timestamp !== 'One-Time') {
+                    const { error: insertError } = await _supabase
+                        .from('tasks')
+                        .insert([{
+                            assignee: selectedTaskRecord.assignee,
+                            description: selectedTaskRecord.description,
+                            completed: false,
+                            timestamp: selectedTaskRecord.timestamp,
+                            remarks: null
+                        }]);
+                        
+                    if (insertError) throw insertError;
+                }
 
                 closeRemarksModal();
                 renderTaskBoardData();
 
             } catch (err) {
                 console.error('Resolution Error:', err);
-                alert('Failed to update task record.');
+                alert('Failed to complete task cycle updates.');
             }
         }
 
-        // --- PASSWORD CHANGE OVERRIDE OPERATIONS ---
+        // --- PASSWORD CHANGE ENGINE ---
         function openPasswordModal() {
             document.getElementById('modal-new-password').value = '';
             document.getElementById('modal-confirm-password').value = '';
@@ -647,7 +668,7 @@
             const confirmPass = document.getElementById('modal-confirm-password').value;
 
             if (!newPass || !confirmPass) {
-                alert('Please populate all password confirmation entry boxes.');
+                alert('Please populate all password fields.');
                 return;
             }
 
@@ -664,7 +685,7 @@
 
                 if (error) throw error;
 
-                alert('Security profiles updated successfully. Please run verification checks during your next log in sequence.');
+                alert('Security profiles updated successfully.');
                 closePasswordModal();
 
             } catch (err) {
