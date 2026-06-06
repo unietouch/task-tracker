@@ -42,7 +42,7 @@
         .screen.active { display: block; }
 
         h2 { margin-bottom: 20px; font-size: 24px; text-align: center; color: #111827; }
-        h3 { margin-top: 20px; margin-bottom: 10px; font-size: 18px; color: #374151; }
+        h3 { margin-top: 25px; margin-bottom: 10px; font-size: 18px; color: #374151; border-top: 1px dashed var(--border); padding-top: 15px; }
 
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: 500; }
@@ -56,6 +56,8 @@
             border: none; border-radius: 6px; font-size: 16px; font-weight: 500; cursor: pointer;
         }
         button:hover { background-color: var(--primary-hover); }
+        .btn-secondary { background-color: #475569; width: auto; padding: 6px 12px; font-size: 13px; margin-top: 5px;}
+        .btn-secondary:hover { background-color: #334155; }
         .btn-danger { background-color: #dc2626; padding: 6px 12px; font-size: 12px; width: auto; }
         .btn-danger:hover { background-color: #b91c1c; }
 
@@ -64,7 +66,8 @@
             margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
         }
         .user-info { font-weight: 600; font-size: 14px; }
-        .logout-lnk { color: var(--primary); cursor: pointer; font-size: 14px; text-decoration: underline; }
+        .nav-actions { display: flex; gap: 15px; align-items: center; }
+        .action-lnk { color: var(--primary); cursor: pointer; font-size: 14px; text-decoration: underline; }
 
         .task-item { display: flex; align-items: flex-start; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; background: #fff; }
         .task-item.completed { background-color: #f0fdf4; border-color: #bbf7d0; }
@@ -83,6 +86,7 @@
         .admin-task-row { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border); }
         
         .loading-text { text-align: center; color: var(--text-light); padding: 10px; font-style: italic; }
+        .flex-row { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -99,16 +103,15 @@
             <input type="password" id="login-password" placeholder="Enter password">
         </div>
         <button onclick="handleLogin()">Login</button>
-        <div style="margin-top: 15px; font-size: 12px; color: var(--text-light); text-align: center;">
-            Admin: <strong>admin</strong> / <strong>admin123</strong><br>
-            Users: <strong>user1</strong> or <strong>user2</strong> / password: <strong>123</strong>
-        </div>
     </div>
 
     <div id="screen-user" class="screen">
         <div class="header-nav">
             <div class="user-info">Welcome, <span id="display-user">User</span></div>
-            <div class="logout-lnk" onclick="logout()">Logout</div>
+            <div class="nav-actions">
+                <div class="action-lnk" onclick="openPasswordModal()">Change Password</div>
+                <div class="action-lnk" style="color:#dc2626;" onclick="logout()">Logout</div>
+            </div>
         </div>
         <h2>My Assigned Tasks</h2>
         <div id="user-task-list"></div>
@@ -117,17 +120,28 @@
     <div id="screen-admin" class="screen">
         <div class="header-nav">
             <div class="user-info">System Administrator</div>
-            <div class="logout-lnk" onclick="logout()">Logout</div>
+            <div class="nav-actions">
+                <div class="action-lnk" onclick="openPasswordModal()">Change Password</div>
+                <div class="action-lnk" style="color:#dc2626;" onclick="logout()">Logout</div>
+            </div>
         </div>
         <h2>Admin Management Panel</h2>
         
+        <h3>Create New User Account</h3>
+        <div class="form-group">
+            <label>New Username</label>
+            <input type="text" id="new-user-name" placeholder="e.g. jvillaver">
+        </div>
+        <div class="form-group">
+            <label>Default Password</label>
+            <input type="text" id="new-user-pass" value="123">
+        </div>
+        <button class="btn-secondary" onclick="createUserAccount()">Create Account</button>
+
         <h3>Assign New Task</h3>
         <div class="form-group">
             <label>Assign To</label>
-            <select id="task-assignee">
-                <option value="user1">user1</option>
-                <option value="user2">user2</option>
-            </select>
+            <select id="task-assignee"></select>
         </div>
         <div class="form-group">
             <label>Task Description</label>
@@ -135,7 +149,7 @@
         </div>
         <button onclick="createTask()">Assign Task</button>
 
-        <h3 style="margin-top: 30px;">All Tasks Audit & Reset</h3>
+        <h3>All Tasks Audit Log</h3>
         <div id="admin-task-list"></div>
     </div>
 </div>
@@ -148,6 +162,19 @@
             <textarea id="modal-remarks-text" rows="3" placeholder="Enter details..."></textarea>
         </div>
         <button onclick="submitTaskCompletion()">Submit & Lock Task</button>
+        <button class="btn-secondary" style="background:#64748b; margin-top:8px; width:100%;" onclick="closeModal('remarks-modal')">Cancel</button>
+    </div>
+</div>
+
+<div id="password-modal" class="modal">
+    <div class="modal-content">
+        <h3>Update Password</h3>
+        <div class="form-group">
+            <label>New Password</label>
+            <input type="password" id="new-password-input" placeholder="Enter new password">
+        </div>
+        <button onclick="submitPasswordChange()">Update Password</button>
+        <button class="btn-secondary" style="background:#64748b; margin-top:8px; width:100%;" onclick="closeModal('password-modal')">Cancel</button>
     </div>
 </div>
 
@@ -161,28 +188,38 @@
     // Initialize Supabase Client
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Hardcoded simple authentication mapping
-    const userDatabase = {
-        "admin": { password: "admin123", role: "admin" },
-        "user1": { password: "123", role: "user" },
-        "user2": { password: "123", role: "user" }
-    };
-
     let currentUser = null;
     let currentTaskToCompleteId = null;
 
-    // --- AUTHENTICATION ---
-    function handleLogin() {
+    // --- AUTHENTICATION ENGINE (QUERIES CLOUD) ---
+    async function handleLogin() {
         const userIn = document.getElementById('login-username').value.trim();
         const passIn = document.getElementById('login-password').value;
 
-        if (userDatabase[userIn] && userDatabase[userIn].password === passIn) {
-            currentUser = { username: userIn, role: userDatabase[userIn].role };
+        if (!userIn || !passIn) {
+            alert('Please complete both fields.');
+            return;
+        }
+
+        // Query the cloud table for matching credentials dynamically
+        let { data: users, error } = await _supabase
+            .from('app_users')
+            .select('*')
+            .eq('username', userIn)
+            .eq('password', passIn);
+
+        if (error) {
+            alert('Database network connectivity error.');
+            return;
+        }
+
+        if (users && users.length > 0) {
+            currentUser = { username: users[0].username, role: users[0].role, id: users[0].id };
             document.getElementById('login-username').value = '';
             document.getElementById('login-password').value = '';
             navigateDashboard();
         } else {
-            alert('Invalid username or password.');
+            alert('Invalid credentials. Access Denied.');
         }
     }
 
@@ -196,9 +233,14 @@
         document.getElementById(screenId).classList.add('active');
     }
 
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.remove('active');
+    }
+
     function navigateDashboard() {
         if (currentUser.role === 'admin') {
             switchScreen('screen-admin');
+            populateAssigneeDropdown();
             renderAdminView();
         } else {
             switchScreen('screen-user');
@@ -207,12 +249,75 @@
         }
     }
 
-    // --- USER DASHBOARD ENGINE (FETCH FROM CLOUD) ---
+    // --- CHANGE PASSWORD ENGINE ---
+    function openPasswordModal() {
+        document.getElementById('new-password-input').value = '';
+        document.getElementById('password-modal').classList.add('active');
+    }
+
+    async function submitPasswordChange() {
+        const newPass = document.getElementById('new-password-input').value.trim();
+        if (!newPass) {
+            alert('Password string cannot be empty.');
+            return;
+        }
+
+        const { error } = await _supabase
+            .from('app_users')
+            .update({ password: newPass })
+            .eq('id', currentUser.id);
+
+        if (error) {
+            alert('Failed to update password in cloud.');
+        } else {
+            alert('Password updated successfully!');
+            closeModal('password-modal');
+        }
+    }
+
+    // --- DYNAMIC USER SEED ENGINE ---
+    async function createUserAccount() {
+        const username = document.getElementById('new-user-name').value.trim().toLowerCase();
+        const password = document.getElementById('new-user-pass').value.trim();
+
+        if (!username || !password) {
+            alert('Please supply both username and default password values.');
+            return;
+        }
+
+        const { error } = await _supabase
+            .from('app_users')
+            .insert([{ username: username, password: password, role: 'user' }]);
+
+        if (error) {
+            alert('Username might already exist or database rejected the push.');
+        } else {
+            alert(`User account "${username}" created!`);
+            document.getElementById('new-user-name').value = '';
+            populateAssigneeDropdown(); // Refresh assigning lists
+        }
+    }
+
+    async function populateAssigneeDropdown() {
+        const dropdown = document.getElementById('task-assignee');
+        let { data: users } = await _supabase.from('app_users').select('username').eq('role', 'user');
+        
+        dropdown.innerHTML = '';
+        if (users) {
+            users.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.username;
+                opt.innerText = u.username;
+                dropdown.appendChild(opt);
+            });
+        }
+    }
+
+    // --- USER DASHBOARD ENGINE ---
     async function renderUserView() {
         const container = document.getElementById('user-task-list');
-        container.innerHTML = '<div class="loading-text">Fetching live data from cloud database...</div>';
+        container.innerHTML = '<div class="loading-text">Fetching data from cloud database...</div>';
 
-        // Query cloud table for this logged-in user
         let { data: tasks, error } = await _supabase
             .from('tasks')
             .select('*')
@@ -256,33 +361,31 @@
         const remarks = document.getElementById('modal-remarks-text').value.trim() || 'No remarks left.';
         const formattedDate = new Date().toLocaleString(); 
 
-        // Update database row dynamically matching the task ID
         const { error } = await _supabase
             .from('tasks')
-            .update({ 
-                completed: true, 
-                timestamp: formattedDate, 
-                remarks: remarks 
-            })
+            .update({ completed: true, timestamp: formattedDate, remarks: remarks })
             .eq('id', currentTaskToCompleteId);
 
         if (error) alert("Database connection error. Try again.");
 
-        document.getElementById('remarks-modal').classList.remove('active');
+        closeModal('remarks-modal');
         renderUserView();
     }
 
-    // --- ADMIN ENGINE (WRITE/REVERT TO CLOUD) ---
+    // --- ADMIN TASK LOGICS ---
     async function createTask() {
         const assignee = document.getElementById('task-assignee').value;
         const desc = document.getElementById('task-desc').value.trim();
 
+        if (!assignee) {
+            alert('Please create a user account first before trying to assign tasks.');
+            return;
+        }
         if (!desc) {
             alert('Please type a task description before assigning.');
             return;
         }
 
-        // Insert new structural row row directly into your Supabase table
         const { error } = await _supabase
             .from('tasks')
             .insert([{ assignee: assignee, description: desc, completed: false }]);
@@ -297,7 +400,7 @@
     }
 
     async function undoTask(taskId) {
-        if (confirm('Are you sure you want to reopen this task and clear cloud execution metrics?')) {
+        if (confirm('Are you sure you want to reopen this task?')) {
             const { error } = await _supabase
                 .from('tasks')
                 .update({ completed: false, timestamp: null, remarks: null })
