@@ -116,9 +116,14 @@
 
         .credential-hints {
             margin-top: 20px;
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-secondary);
             line-height: 1.6;
+            text-align: left;
+            background: rgba(255,255,255,0.02);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
         }
 
         /* --- Dashboard Screen Styling --- */
@@ -137,16 +142,29 @@
             padding: 6px 12px;
             border-radius: 20px;
             border: 1px solid var(--border-color);
+            display: inline-block;
+            margin-top: 4px;
         }
 
-        .btn-logout {
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-header {
             background-color: transparent;
             color: var(--text-secondary);
             border: 1px solid var(--border-color);
-            padding: 6px 12px;
+            padding: 8px 14px;
             font-size: 13px;
             border-radius: 6px;
             cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-header:hover {
+            color: var(--text-primary);
+            border-color: var(--text-secondary);
         }
 
         .btn-logout:hover {
@@ -165,7 +183,7 @@
 
         .inline-form {
             display: grid;
-            grid-template-columns: 1fr 2fr auto;
+            grid-template-columns: 1.2fr 2fr auto;
             gap: 16px;
             align-items: end;
         }
@@ -280,6 +298,10 @@
             border-radius: 6px;
             cursor: pointer;
         }
+        
+        .btn-modal-blue {
+            background-color: var(--accent-blue);
+        }
     </style>
 </head>
 <body>
@@ -301,8 +323,13 @@
         <button class="btn" onclick="handleLogin()">Login</button>
 
         <div class="credential-hints">
-            Admin: <strong>admin</strong> / password: <strong>admin123</strong><br>
-            Users: <strong>user1</strong> or <strong>user2</strong> / password: <strong>123</strong>
+            <strong>System Profiles Matrix:</strong><br>
+            • Admin: <code>admin</code> (Password: <code>admin123</code>)<br>
+            • User 1: <code>user1</code> — Outbound Logistics Analyst<br>
+            • User 2: <code>user2</code> — Inbound Logistics Analyst<br>
+            • User 3: <code>user3</code> — Inventory Control Specialist<br>
+            • User 4: <code>user4</code> — Reverse Logistics Coordinator<br>
+            • User 5: <code>user5</code> — SAP Systems Specialist
         </div>
     </div>
 
@@ -312,7 +339,10 @@
                 <h2>Global Task Tracker Dashboard</h2>
                 <span id="display-user-badge" class="user-badge">Role: Visitor</span>
             </div>
-            <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+            <div class="header-actions">
+                <button class="btn-header" onclick="openPasswordModal()">Change Password</button>
+                <button class="btn-header btn-logout" onclick="handleLogout()">Sign Out</button>
+            </div>
         </div>
 
         <div id="admin-action-panel" class="task-creation-panel hidden">
@@ -321,9 +351,7 @@
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="task-assignee">Assignee Target</label>
                     <select id="task-assignee" class="form-control">
-                        <option value="user1">user1 (Outbound Logistics)</option>
-                        <option value="user2">user2 (SAP Systems Operations)</option>
-                    </select>
+                        </select>
                 </div>
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="task-desc">Task Description & Requirements</label>
@@ -339,7 +367,7 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Assignee</th>
+                        <th>Assignee Team</th>
                         <th>Task Requirements</th>
                         <th>Status</th>
                         <th>Closing Comment Summary</th>
@@ -369,17 +397,47 @@
         </div>
     </div>
 
+    <div id="password-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 8px;">Update System Password</h3>
+            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+                Change your security keys below. Changes apply instantly to your profile database login credentials.
+            </p>
+            <div class="form-group">
+                <label for="modal-new-password">New Security Password</label>
+                <input type="password" id="modal-new-password" class="form-control" placeholder="Enter new password">
+            </div>
+            <div class="form-group">
+                <label for="modal-confirm-password">Confirm New Password</label>
+                <input type="password" id="modal-confirm-password" class="form-control" placeholder="Re-type new password">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closePasswordModal()">Cancel</button>
+                <button class="btn-modal-action btn-modal-blue" onclick="submitPasswordChange()">Update Credentials</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- CLIENT CONFIGURATION ENGINE ---
-        // Clean base path URL connection setup
         const SUPABASE_URL = "https://vwuhpzpagmahzaqyczuw.supabase.co";
         const SUPABASE_KEY = "sb_publishable_GMw--3rEN77JEs4V1_12GA_49xoRpyG";
 
-        // Initialization call sequence using client variable matching structure rules
+        // Initialization call sequence using clean client instance
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let currentUser = null;
         let currentTaskToCompleteId = null;
+
+        // --- EXPLICIT LOGISTICS USER PROFILE NAME MATRIX ---
+        const userDisplayMap = {
+            'admin': 'System Administrator',
+            'user1': 'User 1 (Outbound Logistics Analyst)',
+            'user2': 'User 2 (Inbound Logistics Analyst)',
+            'user3': 'User 3 (Inventory Control Specialist)',
+            'user4': 'User 4 (Reverse Logistics Coordinator)',
+            'user5': 'User 5 (SAP Systems Specialist)'
+        };
 
         // --- AUTHENTICATION ENGINE ---
         async function handleLogin() {
@@ -392,7 +450,6 @@
             }
 
             try {
-                // Fixed target table query execution path using matching database pointer reference
                 let { data: users, error } = await _supabase
                     .from('app_users')
                     .select('*')
@@ -408,10 +465,10 @@
                         id: users[0].id
                     };
                     
-                    // Reset input elements
                     document.getElementById('login-username').value = '';
                     document.getElementById('login-password').value = '';
                     
+                    buildAdminDropdown();
                     navigateDashboard();
                 } else {
                     alert('Invalid credentials. Access Denied.');
@@ -432,10 +489,9 @@
             document.getElementById('view-login').classList.add('hidden');
             document.getElementById('view-dashboard').classList.remove('hidden');
             
-            // Set User Interface Badges
-            document.getElementById('display-user-badge').innerText = `Active User: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
+            const dynamicName = userDisplayMap[currentUser.username] || currentUser.username;
+            document.getElementById('display-user-badge').innerText = `Active Session: ${dynamicName}`;
             
-            // Display administrative configuration tools conditionally
             if (currentUser.role === 'admin') {
                 document.getElementById('admin-action-panel').classList.remove('hidden');
             } else {
@@ -445,12 +501,26 @@
             renderTaskBoardData();
         }
 
+        // Dynamically build dropdown choices using the 5 explicit role variants
+        function buildAdminDropdown() {
+            const dropdown = document.getElementById('task-assignee');
+            dropdown.innerHTML = '';
+            
+            Object.keys(userDisplayMap).forEach(key => {
+                if (key !== 'admin') {
+                    const opt = document.createElement('option');
+                    opt.value = key;
+                    opt.innerText = userDisplayMap[key];
+                    dropdown.appendChild(opt);
+                }
+            });
+        }
+
         // --- DATA PROCESSING AND RENDERING PIPELINE ---
         async function renderTaskBoardData() {
             try {
                 let query = _supabase.from('tasks').select('*').order('id', { ascending: true });
 
-                // Row-Level logic handled client side due to broad pipeline configuration access settings
                 if (currentUser.role !== 'admin') {
                     query = query.eq('assignee', currentUser.username);
                 }
@@ -462,14 +532,14 @@
                 tableBody.innerHTML = '';
 
                 if (!tasks || tasks.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-secondary);">No tasks allocated in queue.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-secondary);">No tasks allocated in pipeline queue.</td></tr>`;
                     return;
                 }
 
                 tasks.forEach(task => {
                     const tr = document.createElement('tr');
-                    
                     const remarksText = task.remarks ? task.remarks : '<span style="color:var(--text-secondary); font-style:italic;">None</span>';
+                    const clearName = userDisplayMap[task.assignee] || task.assignee;
                     
                     let actionCellHtml = '';
                     if (!task.completed) {
@@ -480,7 +550,7 @@
 
                     tr.innerHTML = `
                         <td><strong>#${task.id}</strong></td>
-                        <td><span style="color:var(--text-secondary); font-weight:500;">${task.assignee}</span></td>
+                        <td><span style="color:var(--text-primary); font-weight:500;">${clearName}</span></td>
                         <td>${task.description}</td>
                         <td>
                             <span class="status-pill ${task.completed ? 'status-complete' : 'status-pending'}">
@@ -525,7 +595,7 @@
             }
         }
 
-        // --- CLOSURE AND STATUS OVERRIDE MODAL ACTIONS ---
+        // --- REMARKS MODAL OPERATIONS ---
         function openRemarksModal(taskId) {
             currentTaskToCompleteId = taskId;
             document.getElementById('modal-remarks-input').value = '';
@@ -539,7 +609,6 @@
 
         async function submitTaskClosure() {
             if (!currentTaskToCompleteId) return;
-
             const remarksValue = document.getElementById('modal-remarks-input').value.trim();
 
             try {
@@ -558,7 +627,49 @@
 
             } catch (err) {
                 console.error('Resolution Error:', err);
-                alert('Failed to verify or update server side task tracking objects.');
+                alert('Failed to update task record.');
+            }
+        }
+
+        // --- PASSWORD CHANGE OVERRIDE OPERATIONS ---
+        function openPasswordModal() {
+            document.getElementById('modal-new-password').value = '';
+            document.getElementById('modal-confirm-password').value = '';
+            document.getElementById('password-modal').classList.remove('hidden');
+        }
+
+        function closePasswordModal() {
+            document.getElementById('password-modal').classList.add('hidden');
+        }
+
+        async function submitPasswordChange() {
+            const newPass = document.getElementById('modal-new-password').value;
+            const confirmPass = document.getElementById('modal-confirm-password').value;
+
+            if (!newPass || !confirmPass) {
+                alert('Please populate all password confirmation entry boxes.');
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                alert('Operational Failure: New password entries do not match.');
+                return;
+            }
+
+            try {
+                const { error } = await _supabase
+                    .from('app_users')
+                    .update({ password: newPass })
+                    .eq('id', currentUser.id);
+
+                if (error) throw error;
+
+                alert('Security profiles updated successfully. Please run verification checks during your next log in sequence.');
+                closePasswordModal();
+
+            } catch (err) {
+                console.error('Password Update Error:', err);
+                alert('System error: Failed to modify verification rows.');
             }
         }
     </script>
