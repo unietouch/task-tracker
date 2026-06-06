@@ -40,7 +40,7 @@
         /* --- View Containers --- */
         .view-container {
             width: 100%;
-            max-width: 1150px;
+            max-width: 1250px;
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: 12px;
@@ -232,6 +232,12 @@
             font-weight: 500;
         }
 
+        .date-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
         .action-icon-btn {
             background: transparent;
             border: none;
@@ -359,7 +365,7 @@
             </div>
         </div>
 
-        <h3 style="margin-bottom: 14px; font-size: 16px;">Current Operational Pipeline</h3>
+        <h3 id="table-title-context" style="margin-bottom: 14px; font-size: 16px;">Current Operational Pipeline</h3>
         <div class="table-responsive">
             <table>
                 <thead>
@@ -368,6 +374,8 @@
                         <th>Assignee Team</th>
                         <th>Frequency</th>
                         <th>Task Requirements</th>
+                        <th>Date Assigned</th>
+                        <th>Date Completed</th>
                         <th>Status</th>
                         <th>Closing Comment Summary</th>
                         <th>Action Log</th>
@@ -424,7 +432,8 @@
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let currentUser = null;
-        let selectedTaskRecord = null; 
+        let cachedTasksList = []; // Stores local raw task records to fix element click lookups
+        let selectedTaskId = null; 
 
         // --- CUSTOM LOGISTICS USER PROFILE NAMES ---
         const userDisplayMap = {
@@ -435,6 +444,22 @@
             'user4': 'Reverse Logistics Coordinator',
             'user5': 'SAP Systems Specialist'
         };
+
+        // --- HELPER: DATE FORMATTER ---
+        function formatDbTimestamp(rawString) {
+            if (!rawString) return '<span style="color:var(--text-secondary);">-</span>';
+            const dateObj = new Date(rawString);
+            if (isNaN(dateObj.getTime())) return rawString;
+            
+            // Format to YYYY-MM-DD HH:MM
+            const yyyy = dateObj.getFullYear();
+            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const dd = String(dateObj.getDate()).padStart(2, '0');
+            const hh = String(dateObj.getHours()).padStart(2, '0');
+            const min = String(dateObj.getMinutes()).padStart(2, '0');
+            
+            return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+        }
 
         // --- AUTHENTICATION ENGINE ---
         async function handleLogin() {
@@ -491,8 +516,10 @@
             
             if (currentUser.role === 'admin') {
                 document.getElementById('admin-action-panel').classList.remove('hidden');
+                document.getElementById('table-title-context').innerText = "Global Operations Master Pipeline Log";
             } else {
                 document.getElementById('admin-action-panel').classList.add('hidden');
+                document.getElementById('table-title-context').innerText = "Your Pending Action Assignments for Today";
             }
 
             renderTaskBoardData();
@@ -515,32 +542,46 @@
         // --- DATA PROCESSING AND RENDERING PIPELINE ---
         async function renderTaskBoardData() {
             try {
-                let query = _supabase.from('tasks').select('*').order('id', { ascending: true });
+                let query = _supabase.from('tasks').select('*').order('id', { ascending: false });
 
+                // Filter update: Users only look at tasks explicitly pending for them today
                 if (currentUser.role !== 'admin') {
-                    query = query.eq('assignee', currentUser.username);
+                    query = query.eq('assignee', currentUser.username).eq('completed', false);
                 }
 
                 let { data: tasks, error } = await query;
                 if (error) throw error;
 
+                cachedTasksList = tasks || []; // Store globally to prevent JSON evaluation errors on click events
                 const tableBody = document.getElementById('task-data-rows');
                 tableBody.innerHTML = '';
 
-                if (!tasks || tasks.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-secondary);">No tasks allocated in pipeline queue.</td></tr>`;
+                if (cachedTasksList.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-secondary);">No outstanding matching tasks pending in queue.</td></tr>`;
                     return;
                 }
 
-                tasks.forEach(task => {
+                cachedTasksList.forEach(task => {
                     const tr = document.createElement('tr');
                     const remarksText = task.remarks ? task.remarks : '<span style="color:var(--text-secondary); font-style:italic;">None</span>';
                     const clearName = userDisplayMap[task.assignee] || task.assignee;
                     const frequencyText = task.timestamp ? task.timestamp : 'One-Time'; 
                     
+                    // Format dates cleanly for tracking columns
+                    const dateAssigned = formatDbTimestamp(task.created_at);
+                    
+                    // We can reuse standard columns if custom closed date fields aren't initialized yet
+                    // To handle this cleanly without migration, we show confirmation or fallback empty flags
+                    const dateCompleted = task.completed ? '<span class="date-text">Verified Done</span>' : '<span style="color:var(--text-secondary); font-style:italic;">Open</span>';
+                    
                     let actionCellHtml = '';
                     if (!task.completed) {
-                        actionCellHtml = `<button class="action-icon-btn" onclick="openRemarksModal(${JSON.stringify(task)})">Mark Complete</button>`;
+                        // Access Lockout Check: Admin or exactly the user assigned can execute action
+                        if (currentUser.role === 'admin' || currentUser.username === task.assignee) {
+                            actionCellHtml = `<button class="action-icon-btn" onclick="triggerTaskVerificationModal(${task.id})">Mark Complete</button>`;
+                        } else {
+                            actionCellHtml = `<span style="color:var(--text-secondary); font-size:12px;">Restricted</span>`;
+                        }
                     } else {
                         actionCellHtml = `<span style="color:var(--accent-green); font-weight:500;">Closed Verified</span>`;
                     }
@@ -550,6 +591,8 @@
                         <td><span style="color:var(--text-primary); font-weight:500;">${clearName}</span></td>
                         <td><span class="freq-badge">${frequencyText}</span></td>
                         <td>${task.description}</td>
+                        <td class="date-text">${dateAssigned}</td>
+                        <td class="date-text">${dateCompleted}</td>
                         <td>
                             <span class="status-pill ${task.completed ? 'status-complete' : 'status-pending'}">
                                 ${task.completed ? 'COMPLETED' : 'PENDING'}
@@ -599,20 +642,25 @@
             }
         }
 
-        // --- REMARKS MODAL OPERATIONS ---
-        function openRemarksModal(taskObject) {
-            selectedTaskRecord = taskObject;
+        // --- SAFE ACTION INTERACTION CONTROLLERS ---
+        function triggerTaskVerificationModal(taskId) {
+            selectedTaskId = taskId;
             document.getElementById('modal-remarks-input').value = '';
             document.getElementById('remarks-modal').classList.remove('hidden');
         }
 
         function closeRemarksModal() {
-            selectedTaskRecord = null;
+            selectedTaskId = null;
             document.getElementById('remarks-modal').classList.add('hidden');
         }
 
         async function submitTaskClosure() {
-            if (!selectedTaskRecord) return;
+            if (!selectedTaskId) return;
+            
+            // Find task object inside cache safely
+            const matchingTask = cachedTasksList.find(t => t.id === selectedTaskId);
+            if (!matchingTask) return;
+
             const remarksValue = document.getElementById('modal-remarks-input').value.trim();
             const finalRemarks = remarksValue ? remarksValue : 'Completed cycle verification notes appended.';
 
@@ -624,19 +672,19 @@
                         completed: true, 
                         remarks: finalRemarks 
                     })
-                    .eq('id', selectedTaskRecord.id);
+                    .eq('id', matchingTask.id);
 
                 if (updateError) throw updateError;
 
-                // 2. Schedule engine calculation check
-                if (selectedTaskRecord.timestamp && selectedTaskRecord.timestamp !== 'One-Time') {
+                // 2. Continuous Lifecycle Engine Check: Re-issue recurring templates
+                if (matchingTask.timestamp && matchingTask.timestamp !== 'One-Time') {
                     const { error: insertError } = await _supabase
                         .from('tasks')
                         .insert([{
-                            assignee: selectedTaskRecord.assignee,
-                            description: selectedTaskRecord.description,
+                            assignee: matchingTask.assignee,
+                            description: matchingTask.description,
                             completed: false,
-                            timestamp: selectedTaskRecord.timestamp,
+                            timestamp: matchingTask.timestamp,
                             remarks: null
                         }]);
                         
