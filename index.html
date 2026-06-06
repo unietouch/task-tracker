@@ -34,50 +34,16 @@
             --r-xl: 16px;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: var(--font);
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            font-size: 14px;
-            line-height: 1.5;
-        }
+        body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; }
         .hidden { display: none !important; }
-
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 3px; }
-
-        /* ── LOGIN ── */
-        #view-login {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(59,130,246,0.12) 0%, transparent 70%);
-        }
-        .login-box {
-            width: 100%;
-            max-width: 400px;
-            margin: 20px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--r-xl);
-            padding: 36px 32px;
-        }
-        .login-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 28px;
-        }
-        .login-logo-icon {
-            width: 36px; height: 36px;
-            background: var(--accent);
-            border-radius: var(--r);
-            display: flex; align-items: center; justify-content: center;
-        }
+        
+        #view-login { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(59,130,246,0.12) 0%, transparent 70%); }
+        .login-box { width: 100%; max-width: 400px; margin: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 36px 32px; }
+        .login-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+        .login-logo-icon { width: 36px; height: 36px; background: var(--accent); border-radius: var(--r); display: flex; align-items: center; justify-content: center; }
         .login-logo-icon svg { width: 20px; height: 20px; }
         .login-logo span { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
         .login-logo sub { font-size: 11px; color: var(--text-muted); font-weight: 400; letter-spacing: 0.5px; text-transform: uppercase; display: block; margin-top: -2px; }
@@ -85,88 +51,30 @@
         .login-box p { color: var(--text-muted); font-size: 13px; margin-bottom: 24px; }
         .fgroup { margin-bottom: 14px; }
         .fgroup label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; letter-spacing: 0.3px; text-transform: uppercase; }
-        .fcontrol {
-            width: 100%;
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: var(--r);
-            padding: 10px 14px;
-            color: var(--text);
-            font-size: 14px;
-            font-family: var(--font);
-            outline: none;
-        }
+        .fcontrol { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--r); padding: 10px 14px; color: var(--text); font-size: 14px; font-family: var(--font); outline: none; }
         .fcontrol:focus { border-color: var(--accent); }
         select.fcontrol option { background: var(--bg-card); }
         
-        .btn-primary {
-            width: 100%;
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            border-radius: var(--r);
-            padding: 11px 20px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.15s;
-            margin-top: 6px;
-        }
+        .btn-primary { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: var(--r); padding: 11px 20px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; margin-top: 6px; }
         .btn-primary:hover { background: var(--accent-hover); }
-
-        .btn-delete {
-            background: var(--red-dim);
-            color: var(--red);
-            border: 1px solid rgba(244,63,94,0.2);
-            padding: 5px 12px;
-            border-radius: 5px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.12s;
-        }
+        .btn-delete { background: var(--red-dim); color: var(--red); border: 1px solid rgba(244,63,94,0.2); padding: 5px 12px; border-radius: 5px; font-size: 12px; cursor: pointer; transition: all 0.12s; }
         .btn-delete:hover { background: var(--red); color: #fff; }
 
-        /* ── LAYOUT ── */
         #view-dashboard { display: flex; min-height: 100vh; }
-        .sidebar {
-            width: 260px;
-            min-width: 260px;
-            background: var(--bg-surface);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            top: 0; left: 0; bottom: 0;
-            z-index: 100;
-        }
-        .sidebar-brand {
-            padding: 20px;
-            border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; gap: 10px;
-        }
-        .brand-icon {
-            width: 30px; height: 30px; background: var(--accent); border-radius: 7px;
-            display: flex; align-items: center; justify-content: center;
-        }
+        .sidebar { width: 260px; min-width: 260px; background: var(--bg-surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+        .sidebar-brand { padding: 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+        .brand-icon { width: 30px; height: 30px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; }
         .brand-icon svg { width: 16px; height: 16px; }
         .brand-name { font-size: 15px; font-weight: 600; }
         .brand-ver { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
         
         .sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
-        .nav-item {
-            display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--r);
-            color: var(--text-muted); cursor: pointer; font-size: 13.5px; background: none; border: none; width: 100%; text-align: left;
-            margin-bottom: 4px;
-        }
+        .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--r); color: var(--text-muted); cursor: pointer; font-size: 13.5px; background: none; border: none; width: 100%; text-align: left; margin-bottom: 4px; }
         .nav-item.active { color: var(--accent); background: var(--accent-dim); font-weight: 500; }
         .nav-section-title { font-size: 11px; text-transform: uppercase; color: var(--text-dim); font-weight: 600; padding: 14px 10px 6px; letter-spacing: 0.5px; }
-
         .sidebar-footer { padding: 14px 10px; border-top: 1px solid var(--border); }
         .user-card-mini { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg-card); border-radius: var(--r); border: 1px solid var(--border); }
-        .avatar {
-            width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 11px; font-weight: 700; text-transform: uppercase; background: rgba(59,130,246,0.2); color: var(--accent);
-        }
+        .avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; text-transform: uppercase; background: rgba(59,130,246,0.2); color: var(--accent); }
         .ucm-info { flex: 1; min-width: 0; }
         .ucm-name { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .ucm-role { font-size: 10px; color: var(--text-muted); }
@@ -177,7 +85,6 @@
         .topbar-sub { font-size: 12px; color: var(--text-muted); }
         .page-body { padding: 24px 28px; flex: 1; }
         
-        /* ── METRICS ── */
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
         .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 20px; position: relative; }
         .stat-card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; }
@@ -188,7 +95,6 @@
         .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 500; }
         .stat-value { font-size: 26px; font-weight: 600; font-family: var(--mono); margin-top: 4px; }
 
-        /* ── PANELS & TABLES ── */
         .task-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 24px; }
         .task-panel-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
         .tbl-wrap { overflow-x: auto; }
@@ -210,7 +116,6 @@
         .form-grid { display: grid; grid-template-columns: 1.2fr 1fr 2fr auto; gap: 12px; align-items: end; }
         .user-form-grid { display: grid; grid-template-columns: 1fr 1.5fr 1fr 1fr auto; gap: 12px; align-items: end; }
 
-        /* ── MODALS & TOASTS ── */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 500; }
         .modal { background: var(--bg-card); border: 1px solid var(--border-med); border-radius: var(--r-xl); width: 90%; max-width: 440px; padding: 26px; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
@@ -406,7 +311,6 @@
                 </div>
             </div>
         </div>
-
     </div>
 </div>
 
@@ -701,7 +605,7 @@
         if(!confirm(`Permanently wipe Task #${taskId} from systems record?`)) return;
 
         try {
-            const { error } = await _supabase.from('tasks').delete().eq('id', taskId);
+            const { error } = await _supabase.from('tasks').delete().eq('id', parseInt(taskId));
             if (error) throw error;
 
             generateToast(`Task #${taskId} successfully dropped.`, "success");
@@ -712,7 +616,6 @@
         }
     }
 
-    /* ── USER MANAGEMENT FUNCTIONS (FIXED) ── */
     async function renderUsersManagementTable() {
         const tbody = document.getElementById('users-table-rows');
         if(!tbody) return;
@@ -752,7 +655,7 @@
         const u = document.getElementById('user-username').value.trim();
         const d = document.getElementById('user-display-name').value.trim();
         const p = document.getElementById('user-password').value.trim();
-        const r = document.getElementById('user-role').value;
+        const r = document.getElementById('user-role').value; // Evaluates properly to 'staff' or 'admin' strings
 
         if(!u || !p) {
             generateToast("Username and Password tokens are mandatory.", "error");
@@ -798,7 +701,7 @@
                 display_name: newDisplay || newUsername,
                 password: newPass,
                 role: newRole
-            }).eq('id', userId);
+            }).eq('id', parseInt(userId));
 
             if (userUpdateError) throw userUpdateError;
 
@@ -823,7 +726,7 @@
             renderUsersManagementTable();
         } catch (e) {
             console.error(e);
-            generateToast("Update payload tracking error (400). Check values.", "error");
+            generateToast("Update payload tracking error. Check formatting values.", "error");
         }
     }
 
@@ -832,7 +735,7 @@
         if(!confirm(`Completely drop profile credentials for target '${username}'?`)) return;
 
         try {
-            const { error } = await _supabase.from('app_users').delete().eq('id', userId);
+            const { error } = await _supabase.from('app_users').delete().eq('id', parseInt(userId));
             if (error) throw error;
 
             generateToast(`User profile '${username}' permanently removed.`);
@@ -844,9 +747,10 @@
         }
     }
 
-    /* ── TASK CLOSURE SYSTEM FUNCTIONS ── */
+    /* ── FIX FOR CLOSURE MODAL METHOD ── */
     function openClosureModal(id) {
-        selectedTaskIdTarget = id;
+        // Clear out extraneous element modifiers to pass a clean integer ID
+        selectedTaskIdTarget = parseInt(id); 
         document.getElementById('closure-comment').value = '';
         document.getElementById('modal-closure').classList.remove('hidden');
     }
@@ -861,6 +765,7 @@
         const text = document.getElementById('closure-comment').value.trim() || "Operations confirmed completed.";
 
         try {
+            // Sends direct targeted single parameters to match column structures smoothly
             const { error } = await _supabase.from('tasks').update({
                 completed: true,
                 remarks: text,
