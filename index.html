@@ -130,7 +130,6 @@
         .prog-percentage { font-weight: 600; color: var(--text); }
         .prog-fraction { color: var(--text-muted); }
 
-        /* Upcoming / Missed Framework Cards */
         .radar-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; margin-bottom: 24px; }
         .radar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 14px; }
         .radar-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; position: relative; display: flex; flex-direction: column; gap: 6px; }
@@ -157,8 +156,14 @@
         .date-col { font-family: var(--mono); font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 
         .create-form-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px 24px; margin-bottom: 20px; }
-        .form-grid { display: grid; grid-template-columns: 1.2fr 1fr 2fr auto; gap: 12px; align-items: end; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 2fr auto; gap: 12px; align-items: end; }
         .user-form-grid { display: grid; grid-template-columns: 1fr 1.5fr 1fr 1fr auto; gap: 12px; align-items: end; }
+
+        /* Shared layout styling rules for Admin Filters section */
+        .pipeline-filter-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 20px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 12px; align-items: end; }
+        .pipeline-filter-card .fgroup { margin-bottom: 0; }
+        .btn-reset { background: var(--bg-input); border: 1px solid var(--border-med); color: var(--text-muted); border-radius: var(--r); padding: 10px 16px; cursor: pointer; transition: all 0.15s; font-size: 13px; font-weight: 500; }
+        .btn-reset:hover { border-color: var(--accent); color: var(--text); }
 
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 500; }
         .modal { background: var(--bg-card); border: 1px solid var(--border-med); border-radius: var(--r-xl); width: 90%; max-width: 440px; padding: 26px; }
@@ -176,7 +181,6 @@
 </head>
 <body>
 
-<!-- ═══════════════ LOGIN VIEW ═══════════════ -->
 <div id="view-login">
     <div class="login-box">
         <div class="login-logo">
@@ -202,7 +206,6 @@
     </div>
 </div>
 
-<!-- ═══════════════ DASHBOARD SYSTEM VIEW ═══════════════ -->
 <div id="view-dashboard" class="hidden">
     <aside class="sidebar">
         <div class="sidebar-brand">
@@ -211,7 +214,7 @@
             </div>
             <div>
                 <div class="brand-name">OpsDesk</div>
-                <div class="brand-ver">v2.1</div>
+                <div class="brand-ver">v2.2</div>
             </div>
         </div>
         <nav class="sidebar-nav">
@@ -242,7 +245,6 @@
             </div>
         </div>
 
-        <!-- SUB-VIEW 0: METRICS & ANALYTICS OVERVIEW -->
         <div id="subview-analytics" class="page-body">
             <div class="stats-grid">
                 <div class="stat-card stat-blue">
@@ -263,27 +265,21 @@
                 </div>
             </div>
 
-            <!-- Upcoming Radar Alert Module -->
             <div class="radar-panel">
                 <div class="chart-header">
                     <h4>Upcoming Schedule Radar (48-Hour Horizon)</h4>
                     <p>Anticipated future tasking cycles based on pipeline activity rules</p>
                 </div>
-                <div class="radar-grid" id="radar-deck-anchor">
-                    <!-- Dynamic preview triggers bind here -->
-                </div>
+                <div class="radar-grid" id="radar-deck-anchor"></div>
             </div>
 
-            <!-- Chart Splits -->
             <div class="analytics-split-row">
                 <div class="chart-panel-card">
                     <div class="chart-header">
                         <h4>Task Activity — By Assignee</h4>
                         <p>Completed vs. Pending breakdown per team member</p>
                     </div>
-                    <div class="bar-chart-container" id="bar-chart-anchor">
-                        <!-- Dynamic columns attach here -->
-                    </div>
+                    <div class="bar-chart-container" id="bar-chart-anchor"></div>
                 </div>
 
                 <div class="chart-panel-card">
@@ -291,25 +287,19 @@
                         <h4>Frequency Distribution</h4>
                         <p>Task types across the active operational pipeline</p>
                     </div>
-                    <div class="dist-list" id="frequency-dist-anchor">
-                        <!-- Dynamic lines attach here -->
-                    </div>
+                    <div class="dist-list" id="frequency-dist-anchor"></div>
                 </div>
             </div>
 
-            <!-- Per User Progress Bars Matrix -->
             <div class="progress-list-panel">
                 <div class="chart-header" style="margin-bottom:16px;">
                     <h4>Per-User Performance Summary</h4>
                     <p>Completion rate execution matrix for each active team member</p>
                 </div>
-                <div id="progress-rows-anchor">
-                    <!-- Dynamic summary rows link up here -->
-                </div>
+                <div id="progress-rows-anchor"></div>
             </div>
         </div>
 
-        <!-- SUB-VIEW 1: OPERATIONAL PIPELINE -->
         <div id="subview-pipeline" class="page-body hidden">
             <div id="admin-creation-panel" class="create-form-card hidden">
                 <h3>Deploy New Operation Task</h3>
@@ -320,19 +310,66 @@
                     </div>
                     <div class="fgroup" style="margin:0;">
                         <label>Frequency Type</label>
-                        <select id="task-frequency" class="fcontrol">
+                        <select id="task-frequency" class="fcontrol" onchange="toggleFormDeadlineInputs()">
                             <option value="One-Time">One-Time</option>
                             <option value="Daily">Daily</option>
                             <option value="Weekly">Weekly</option>
                             <option value="Monthly">Monthly</option>
                         </select>
                     </div>
-                    <div class="fgroup" style="margin:0;">
+                    
+                    <div class="fgroup hidden" id="deadline-group-weekly" style="margin:0;">
+                        <label>Target Target Day</label>
+                        <select id="task-deadline-weekly" class="fcontrol">
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                        </select>
+                    </div>
+                    <div class="fgroup hidden" id="deadline-group-monthly" style="margin:0;">
+                        <label>Day of Month (1-31)</label>
+                        <input type="number" id="task-deadline-monthly" class="fcontrol" min="1" max="31" value="1">
+                    </div>
+
+                    <div class="fgroup" style="margin:0;" id="desc-form-wrapper">
                         <label>Task Description Requirements</label>
                         <input type="text" id="task-desc" class="fcontrol" placeholder="Input operational directives...">
                     </div>
                     <button class="btn-primary" style="margin:0; width:auto;" onclick="createNewTask()">Deploy Task</button>
                 </div>
+            </div>
+
+            <div id="admin-filter-panel" class="pipeline-filter-card hidden">
+                <div class="fgroup">
+                    <label style="display:block; font-size:11px; color:var(--text-muted); margin-bottom:5px; text-transform:uppercase; font-weight:600;">Timeframe</label>
+                    <select id="filter-timeframe" class="fcontrol" onchange="applyPipelineFilters()">
+                        <option value="ALL">All Time</option>
+                        <option value="DAY">Today</option>
+                        <option value="WEEK">This Week</option>
+                        <option value="MONTH">This Month</option>
+                    </select>
+                </div>
+                <div class="fgroup">
+                    <label style="display:block; font-size:11px; color:var(--text-muted); margin-bottom:5px; text-transform:uppercase; font-weight:600;">Assignee User</label>
+                    <select id="filter-user" class="fcontrol" onchange="applyPipelineFilters()">
+                        <option value="ALL">All Users</option>
+                    </select>
+                </div>
+                <div class="fgroup">
+                    <label style="display:block; font-size:11px; color:var(--text-muted); margin-bottom:5px; text-transform:uppercase; font-weight:600;">Task Status</label>
+                    <select id="filter-status" class="fcontrol" onchange="applyPipelineFilters()">
+                        <option value="ALL">All Statuses</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="DONE">Done</option>
+                        <option value="MISSED">Missed</option>
+                    </select>
+                </div>
+                <div class="fgroup" style="visibility: hidden; width: 0; padding: 0; margin: 0;">
+                    </div>
+                <button class="btn-reset" onclick="resetPipelineFilters()">Clear Filters</button>
             </div>
 
             <div class="task-panel">
@@ -360,7 +397,6 @@
             </div>
         </div>
 
-        <!-- SUB-VIEW 2: USER MANAGEMENT -->
         <div id="subview-users" class="page-body hidden">
             <div class="create-form-card">
                 <h3>Add / Update Operational User Account</h3>
@@ -411,7 +447,6 @@
     </div>
 </div>
 
-<!-- Completion Context Modal Popup -->
 <div id="modal-closure" class="modal-backdrop hidden">
     <div class="modal">
         <h3>Finalize Task Resolution</h3>
@@ -429,7 +464,6 @@
 
 <div class="toast-container" id="toast-wrapper"></div>
 
-<!-- ═══════════════ APPLICATION LOGIC ═══════════════ -->
 <script>
     const SUPABASE_URL = "https://vwuhpzpagmahzaqyczuw.supabase.co";
     const SUPABASE_KEY = "sb_publishable_GMw--3rEN77JEs4V1_12GA_49xoRpyG";
@@ -449,6 +483,26 @@
         box.innerHTML = `<div class="toast-dot"></div><span>${text}</span>`;
         wrapper.appendChild(box);
         setTimeout(() => box.remove(), 3500);
+    }
+
+    function toggleFormDeadlineInputs() {
+        const freq = document.getElementById('task-frequency').value;
+        const weeklyGroup = document.getElementById('deadline-group-weekly');
+        const monthlyGroup = document.getElementById('deadline-group-monthly');
+        const gridContainer = document.querySelector('.form-grid');
+
+        weeklyGroup.classList.add('hidden');
+        monthlyGroup.classList.add('hidden');
+
+        if (freq === 'Weekly') {
+            weeklyGroup.classList.remove('hidden');
+            gridContainer.style.gridTemplateColumns = "1fr 1fr 1fr 2fr auto";
+        } else if (freq === 'Monthly') {
+            monthlyGroup.classList.remove('hidden');
+            gridContainer.style.gridTemplateColumns = "1fr 1fr 1fr 2fr auto";
+        } else {
+            gridContainer.style.gridTemplateColumns = "1fr 1fr 2fr auto";
+        }
     }
 
     function formatTimestampValue(rawString) {
@@ -477,7 +531,6 @@
         if (task.completed) return false;
         if (!task.created_at) return false;
 
-        // Parse date in Philippine context space
         const taskDateStr = new Date(task.created_at).toLocaleDateString('en-US', { timeZone: 'Asia/Manila' });
         const currentDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Manila' });
 
@@ -525,6 +578,7 @@
             });
             
             populateDropdownOptions(dbUserProfilesList);
+            populateAdminAssigneeFilter(dbUserProfilesList);
         } catch (e) {
             console.error("Directory Sync Failed:", e);
         }
@@ -578,11 +632,14 @@
 
         if(sessionUser.role === 'admin') {
             document.getElementById('admin-creation-panel').classList.remove('hidden');
+            document.getElementById('admin-filter-panel').classList.remove('hidden');
             document.getElementById('nav-btn-users').classList.remove('hidden');
             document.getElementById('table-view-title').innerText = "Global Operations Master Control Index";
             document.getElementById('th-actions').innerText = "Actions / Control";
+            toggleFormDeadlineInputs();
         } else {
             document.getElementById('admin-creation-panel').classList.add('hidden');
+            document.getElementById('admin-filter-panel').classList.add('hidden');
             document.getElementById('nav-btn-users').classList.add('hidden');
             document.getElementById('table-view-title').innerText = "Your Pending Action Assignments";
             document.getElementById('th-actions').innerText = "Actions";
@@ -601,6 +658,23 @@
                 opt.value = user.username;
                 opt.innerText = user.display_name || user.username;
                 select.appendChild(opt);
+            }
+        });
+    }
+
+    function populateAdminAssigneeFilter(allUsers) {
+        const filterSelect = document.getElementById('filter-user');
+        if(!filterSelect) return;
+        
+        // Retain default clear option state
+        filterSelect.innerHTML = '<option value="ALL">All Users</option>';
+        
+        allUsers.forEach(user => {
+            if(user.role !== 'admin') {
+                const opt = document.createElement('option');
+                opt.value = user.username;
+                opt.innerText = user.display_name || user.username;
+                filterSelect.appendChild(opt);
             }
         });
     }
@@ -627,11 +701,69 @@
             calculateMetricsSummary();
             renderAnalyticsCharts();
             renderRadarScheduleEngine();
-            renderTableRows();
+            
+            // Apply current filters to accurately determine layout configuration values
+            applyPipelineFilters();
         } catch(e) {
             console.error(e);
             generateToast("Failed loading task tracking entries.", "error");
         }
+    }
+
+    /* REALTIME FILTERING ENGINE CONTROLLER */
+    function applyPipelineFilters() {
+        if (!localTasksCache) return;
+
+        const timeFilter = document.getElementById('filter-timeframe').value;
+        const userFilter = document.getElementById('filter-user').value;
+        const statusFilter = document.getElementById('filter-status').value;
+
+        const filteredTasks = localTasksCache.filter(task => {
+            // 1. Assignee matching rule validation
+            if (userFilter !== 'ALL' && task.assignee !== userFilter) {
+                return false;
+            }
+
+            // 2. Status matching rule validation
+            const isMissed = isTaskOverdueAndUnresolved(task);
+            let calculatedStatus = 'PENDING';
+            if (task.completed) calculatedStatus = 'DONE';
+            else if (isMissed) calculatedStatus = 'MISSED';
+
+            if (statusFilter !== 'ALL' && calculatedStatus !== statusFilter) {
+                return false;
+            }
+
+            // 3. Timeframe matching validation rules (Day, Week, Month calculation)
+            if (timeFilter !== 'ALL' && task.created_at) {
+                const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+                const taskDatePH = new Date(new Date(task.created_at).toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+
+                if (timeFilter === 'DAY') {
+                    if (taskDatePH.toDateString() !== nowPH.toDateString()) return false;
+                } else if (timeFilter === 'WEEK') {
+                    // Filter components within the last 7 calendar days
+                    const millisecondDiff = nowPH - taskDatePH;
+                    const dayDiff = millisecondDiff / (1000 * 60 * 60 * 24);
+                    if (dayDiff > 7 || dayDiff < 0) return false;
+                } else if (timeFilter === 'MONTH') {
+                    if (taskDatePH.getMonth() !== nowPH.getMonth() || taskDatePH.getFullYear() !== nowPH.getFullYear()) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        });
+
+        renderTableRows(filteredTasks);
+    }
+
+    function resetPipelineFilters() {
+        document.getElementById('filter-timeframe').value = 'ALL';
+        document.getElementById('filter-user').value = 'ALL';
+        document.getElementById('filter-status').value = 'ALL';
+        applyPipelineFilters();
     }
 
     function calculateMetricsSummary() {
@@ -656,12 +788,9 @@
         if (!radarAnchor) return;
         radarAnchor.innerHTML = '';
 
-        // Generate absolute calculation targets in true Philippine timezone offsets
         const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
-        
         let upcomingCount = 0;
 
-        // Process matching historical task sequences to warn operators 48 hours out
         localTasksCache.forEach(task => {
             if (!task.timestamp || task.timestamp === 'One-Time') return;
 
@@ -669,7 +798,6 @@
             const diffTime = Math.abs(nowPH - taskDate);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            // Triggers proactive notice radar arrays if within a 2-day threshold window
             if (diffDays <= 2 && !task.completed) {
                 upcomingCount++;
                 const card = document.createElement('div');
@@ -770,17 +898,17 @@
         });
     }
 
-    function renderTableRows() {
+    function renderTableRows(tasksDataset = localTasksCache) {
         const tbody = document.getElementById('task-table-rows');
         if(!tbody) return;
         tbody.innerHTML = '';
 
-        if(localTasksCache.length === 0) {
+        if(tasksDataset.length === 0) {
             tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted);">No records match specified monitoring parameters.</td></tr>`;
             return;
         }
 
-        localTasksCache.forEach(task => {
+        tasksDataset.forEach(task => {
             const tr = document.createElement('tr');
             let actionMarkup = '';
 
@@ -802,18 +930,22 @@
                 actionMarkup = `<span style="color:var(--text-dim); font-size:12px;">Restricted</span>`;
             }
 
-            // Status Badge Calculation Configuration
             let statusBadge = `<span class="pill pill-red">PENDING</span>`;
             if (task.completed) {
                 statusBadge = `<span class="pill pill-green">COMPLETED</span>`;
             } else if (isMissed) {
-                statusBadge = `<span class="pill pill-amber" style="animation: pulse 2s infinite;">MISSED</span>`;
+                statusBadge = `<span class="pill pill-amber">MISSED</span>`;
+            }
+
+            let displayFrequency = task.timestamp || 'One-Time';
+            if(task.deadline_target) {
+                displayFrequency += ` (${task.deadline_target})`;
             }
 
             tr.innerHTML = `
                 <td class="date-col">#${task.id}</td>
                 <td><strong>${dbUsersMap[task.assignee] || task.assignee}</strong></td>
-                <td><span class="pill pill-blue">${task.timestamp || 'One-Time'}</span></td>
+                <td><span class="pill pill-blue">${displayFrequency}</span></td>
                 <td>${task.description}</td>
                 <td class="date-col">${formatTimestampValue(task.created_at)}</td>
                 <td class="date-col">${formatTimestampValue(task.completed_at)}</td>
@@ -829,6 +961,18 @@
         const assignee = document.getElementById('task-assignee').value;
         const freq = document.getElementById('task-frequency').value;
         const desc = document.getElementById('task-desc').value.trim();
+        
+        let deadlineVal = null;
+        if(freq === 'Weekly') {
+            deadlineVal = document.getElementById('task-deadline-weekly').value;
+        } else if(freq === 'Monthly') {
+            const dayNum = parseInt(document.getElementById('task-deadline-monthly').value);
+            if(isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
+                generateToast("Please declare a numeric day rule ranging from 1 to 31.", "error");
+                return;
+            }
+            deadlineVal = "Day " + dayNum;
+        }
 
         if(!assignee || !desc) {
             generateToast("Directives target tracking properties missing.", "error");
@@ -840,7 +984,8 @@
                 assignee: assignee,
                 description: desc,
                 completed: false,
-                timestamp: freq
+                timestamp: freq,
+                deadline_target: deadlineVal
             }]);
 
             if (error) throw error;
