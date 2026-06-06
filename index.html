@@ -3,446 +3,564 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Connected Task Tracker</title>
+    <title>Global Task Tracker Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text: #1e293b;
-            --text-light: #64748b;
-            --border: #e2e8f0;
-            --success: #16a34a;
+            --bg-main: #0f1115;
+            --bg-card: #181c24;
+            --bg-input: #222733;
+            --border-color: #2e3545;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-blue: #2563eb;
+            --accent-blue-hover: #1d4ed8;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
 
         body {
-            background-color: var(--bg);
-            color: var(--text);
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
             padding: 20px;
         }
 
-        .container {
+        /* --- View Containers --- */
+        .view-container {
             width: 100%;
-            max-width: 600px;
-            background: var(--card-bg);
-            padding: 30px;
+            max-width: 1100px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
             border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 32px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
         }
 
-        .screen { display: none; }
-        .screen.active { display: block; }
-
-        h2 { margin-bottom: 20px; font-size: 24px; text-align: center; color: #111827; }
-        h3 { margin-top: 25px; margin-bottom: 10px; font-size: 18px; color: #374151; border-top: 1px dashed var(--border); padding-top: 15px; }
-
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: 500; }
-
-        input[type="text"], input[type="password"], select, textarea {
-            width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;
+        .hidden {
+            display: none !important;
         }
 
-        button {
-            width: 100%; padding: 11px; background-color: var(--primary); color: white;
-            border: none; border-radius: 6px; font-size: 16px; font-weight: 500; cursor: pointer;
+        /* --- Login Screen Styling --- */
+        .login-wrapper {
+            max-width: 420px;
+            text-align: center;
         }
-        button:hover { background-color: var(--primary-hover); }
-        .btn-secondary { background-color: #475569; width: auto; padding: 6px 12px; font-size: 13px; margin-top: 5px;}
-        .btn-secondary:hover { background-color: #334155; }
-        .btn-danger { background-color: #dc2626; padding: 6px 12px; font-size: 12px; width: auto; }
-        .btn-danger:hover { background-color: #b91c1c; }
 
-        .header-nav {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        .login-wrapper h2 {
+            margin-bottom: 8px;
+            font-size: 24px;
         }
-        .user-info { font-weight: 600; font-size: 14px; }
-        .nav-actions { display: flex; gap: 15px; align-items: center; }
-        .action-lnk { color: var(--primary); cursor: pointer; font-size: 14px; text-decoration: underline; }
 
-        .task-item { display: flex; align-items: flex-start; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; background: #fff; }
-        .task-item.completed { background-color: #f0fdf4; border-color: #bbf7d0; }
-        .task-checkbox { margin-top: 4px; margin-right: 12px; width: 18px; height: 18px; cursor: pointer; }
-        .task-details { flex-grow: 1; }
-        .task-text { font-size: 15px; font-weight: 500; }
-        .task-meta { font-size: 12px; color: var(--text-light); margin-top: 2px; }
-        .task-remarks { font-size: 13px; color: #047857; margin-top: 4px; font-style: italic; }
-
-        .modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 100;
+        .login-wrapper p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 24px;
         }
-        .modal.active { display: flex; }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; }
-        .admin-task-row { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border); }
-        
-        .loading-text { text-align: center; color: var(--text-light); padding: 10px; font-style: italic; }
-        .flex-row { display: flex; gap: 10px; }
+
+        .form-group {
+            text-align: left;
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .form-control {
+            width: 100%;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .btn {
+            width: 100%;
+            background-color: var(--accent-blue);
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-blue-hover);
+        }
+
+        .credential-hints {
+            margin-top: 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* --- Dashboard Screen Styling --- */
+        .dash-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        .user-badge {
+            font-size: 14px;
+            background-color: var(--bg-input);
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-logout {
+            background-color: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-logout:hover {
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+
+        /* --- Action Form Section --- */
+        .task-creation-panel {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .inline-form {
+            display: grid;
+            grid-template-columns: 1fr 2fr auto;
+            gap: 16px;
+            align-items: end;
+        }
+
+        /* --- Task Board Layout --- */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.01);
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+        }
+
+        .status-complete {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+        }
+
+        .action-icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--accent-blue);
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: underline;
+        }
+
+        .action-icon-btn:hover {
+            color: var(--text-primary);
+        }
+
+        /* --- Modal Window Overlay --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            width: 90%;
+            max-width: 480px;
+            padding: 24px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--bg-input);
+        }
+
+        .btn-modal-action {
+            background-color: var(--accent-green);
+            color: #ffffff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div id="screen-login" class="screen active">
+    <div id="view-login" class="view-container login-wrapper">
         <h2>Account Login</h2>
+        <p>Log in to access and update your tasks</p>
+        
         <div class="form-group">
-            <label>Username</label>
-            <input type="text" id="login-username" placeholder="Enter username">
+            <label for="login-username">Username</label>
+            <input type="text" id="login-username" class="form-control" placeholder="Enter username">
         </div>
+
         <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="login-password" placeholder="Enter password">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" class="form-control" placeholder="Enter password">
         </div>
-        <button onclick="handleLogin()">Login</button>
+
+        <button class="btn" onclick="handleLogin()">Login</button>
+
+        <div class="credential-hints">
+            Admin: <strong>admin</strong> / password: <strong>admin123</strong><br>
+            Users: <strong>user1</strong> or <strong>user2</strong> / password: <strong>123</strong>
+        </div>
     </div>
 
-    <div id="screen-user" class="screen">
-        <div class="header-nav">
-            <div class="user-info">Welcome, <span id="display-user">User</span></div>
-            <div class="nav-actions">
-                <div class="action-lnk" onclick="openPasswordModal()">Change Password</div>
-                <div class="action-lnk" style="color:#dc2626;" onclick="logout()">Logout</div>
+    <div id="view-dashboard" class="view-container hidden">
+        <div class="dash-header">
+            <div>
+                <h2>Global Task Tracker Dashboard</h2>
+                <span id="display-user-badge" class="user-badge">Role: Visitor</span>
+            </div>
+            <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+        </div>
+
+        <div id="admin-action-panel" class="task-creation-panel hidden">
+            <h3 style="margin-bottom: 12px; font-size: 16px;">Create Global Task Assignment</h3>
+            <div class="inline-form">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="task-assignee">Assignee Target</label>
+                    <select id="task-assignee" class="form-control">
+                        <option value="user1">user1 (Outbound Logistics)</option>
+                        <option value="user2">user2 (SAP Systems Operations)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="task-desc">Task Description & Requirements</label>
+                    <input type="text" id="task-desc" class="form-control" placeholder="e.g., Run outbound audit reporting logs">
+                </div>
+                <button class="btn" style="margin-top:0; width:auto; padding: 10px 24px;" onclick="createNewTask()">Deploy Task</button>
             </div>
         </div>
-        <h2>My Assigned Tasks</h2>
-        <div id="user-task-list"></div>
+
+        <h3 style="margin-bottom: 14px; font-size: 16px;">Current Operational Pipeline</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Assignee</th>
+                        <th>Task Requirements</th>
+                        <th>Status</th>
+                        <th>Closing Comment Summary</th>
+                        <th>Action Log</th>
+                    </tr>
+                </thead>
+                <tbody id="task-data-rows">
+                    </tbody>
+            </table>
+        </div>
     </div>
 
-    <div id="screen-admin" class="screen">
-        <div class="header-nav">
-            <div class="user-info">System Administrator</div>
-            <div class="nav-actions">
-                <div class="action-lnk" onclick="openPasswordModal()">Change Password</div>
-                <div class="action-lnk" style="color:#dc2626;" onclick="logout()">Logout</div>
+    <div id="remarks-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 8px;">Finalize Task Resolution</h3>
+            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+                Add comments, closing remarks, or variance records before updating status.
+            </p>
+            <div class="form-group">
+                <label for="modal-remarks-input">Operational Closing Comments</label>
+                <textarea id="modal-remarks-input" class="form-control" rows="4" placeholder="Enter closure notes here..."></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closeRemarksModal()">Cancel Process</button>
+                <button class="btn-modal-action" onclick="submitTaskClosure()">Complete Action</button>
             </div>
         </div>
-        <h2>Admin Management Panel</h2>
-        
-        <h3>Create New User Account</h3>
-        <div class="form-group">
-            <label>New Username</label>
-            <input type="text" id="new-user-name" placeholder="e.g. jvillaver">
-        </div>
-        <div class="form-group">
-            <label>Default Password</label>
-            <input type="text" id="new-user-pass" value="123">
-        </div>
-        <button class="btn-secondary" onclick="createUserAccount()">Create Account</button>
-
-        <h3>Assign New Task</h3>
-        <div class="form-group">
-            <label>Assign To</label>
-            <select id="task-assignee"></select>
-        </div>
-        <div class="form-group">
-            <label>Task Description</label>
-            <input type="text" id="task-desc" placeholder="What needs to be done?">
-        </div>
-        <button onclick="createTask()">Assign Task</button>
-
-        <h3>All Tasks Audit Log</h3>
-        <div id="admin-task-list"></div>
     </div>
-</div>
 
-<div id="remarks-modal" class="modal">
-    <div class="modal-content">
-        <h3>Complete Task</h3>
-        <div class="form-group">
-            <label>Add Completion Remarks / Notes</label>
-            <textarea id="modal-remarks-text" rows="3" placeholder="Enter details..."></textarea>
-        </div>
-        <button onclick="submitTaskCompletion()">Submit & Lock Task</button>
-        <button class="btn-secondary" style="background:#64748b; margin-top:8px; width:100%;" onclick="closeModal('remarks-modal')">Cancel</button>
-    </div>
-</div>
+    <script>
+        // --- CLIENT CONFIGURATION ENGINE ---
+        // Clean base path URL connection setup
+        const SUPABASE_URL = "https://vwuhpzpagmahzaqyczuw.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_GMw--3rEN77JEs4V1_12GA_49xoRpyG";
 
-<div id="password-modal" class="modal">
-    <div class="modal-content">
-        <h3>Update Password</h3>
-        <div class="form-group">
-            <label>New Password</label>
-            <input type="password" id="new-password-input" placeholder="Enter new password">
-        </div>
-        <button onclick="submitPasswordChange()">Update Password</button>
-        <button class="btn-secondary" style="background:#64748b; margin-top:8px; width:100%;" onclick="closeModal('password-modal')">Cancel</button>
-    </div>
-</div>
+        // Initialization call sequence using client variable matching structure rules
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-<script>
-    // ==========================================
-    // CONFIGURATION: PASTE YOUR SUPABASE CREDENTIALS HERE
-    // ==========================================
-	const SUPABASE_URL = "https://vwuhpzpagmahzaqyczuw.supabase.co";
-	const SUPABASE_KEY = "sb_publishable_GMw--3rEN77JEs4V1_12GA_49xoRpyG";
-    
-    // Initialize Supabase Client
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let currentUser = null;
+        let currentTaskToCompleteId = null;
 
-    let currentUser = null;
-    let currentTaskToCompleteId = null;
+        // --- AUTHENTICATION ENGINE ---
+        async function handleLogin() {
+            const userIn = document.getElementById('login-username').value.trim();
+            const passIn = document.getElementById('login-password').value;
 
-    // --- AUTHENTICATION ENGINE (QUERIES CLOUD) ---
-    async function handleLogin() {
-        const userIn = document.getElementById('login-username').value.trim();
-        const passIn = document.getElementById('login-password').value;
+            if (!userIn || !passIn) {
+                alert('Please complete both fields.');
+                return;
+            }
 
-        if (!userIn || !passIn) {
-            alert('Please complete both fields.');
-            return;
+            try {
+                // Fixed target table query execution path using matching database pointer reference
+                let { data: users, error } = await _supabase
+                    .from('app_users')
+                    .select('*')
+                    .eq('username', userIn)
+                    .eq('password', passIn);
+
+                if (error) throw error;
+
+                if (users && users.length > 0) {
+                    currentUser = {
+                        username: users[0].username,
+                        role: users[0].role,
+                        id: users[0].id
+                    };
+                    
+                    // Reset input elements
+                    document.getElementById('login-username').value = '';
+                    document.getElementById('login-password').value = '';
+                    
+                    navigateDashboard();
+                } else {
+                    alert('Invalid credentials. Access Denied.');
+                }
+            } catch (err) {
+                console.error('Authentication Error:', err);
+                alert('Database network connectivity error.');
+            }
         }
 
-        // Query the cloud table for matching credentials dynamically
-        let { data: users, error } = await _supabase
-            .from('app_users')
-            .select('*')
-            .eq('username', userIn)
-            .eq('password', passIn);
-
-        if (error) {
-            alert('Database network connectivity error.');
-            return;
+        function handleLogout() {
+            currentUser = null;
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-login').classList.remove('hidden');
         }
 
-        if (users && users.length > 0) {
-            currentUser = { username: users[0].username, role: users[0].role, id: users[0].id };
-            document.getElementById('login-username').value = '';
-            document.getElementById('login-password').value = '';
-            navigateDashboard();
-        } else {
-            alert('Invalid credentials. Access Denied.');
-        }
-    }
-
-    function logout() {
-        currentUser = null;
-        switchScreen('screen-login');
-    }
-
-    function switchScreen(screenId) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(screenId).classList.add('active');
-    }
-
-    function closeModal(modalId) {
-        document.getElementById(modalId).classList.remove('active');
-    }
-
-    function navigateDashboard() {
-        if (currentUser.role === 'admin') {
-            switchScreen('screen-admin');
-            populateAssigneeDropdown();
-            renderAdminView();
-        } else {
-            switchScreen('screen-user');
-            document.getElementById('display-user').innerText = currentUser.username;
-            renderUserView();
-        }
-    }
-
-    // --- CHANGE PASSWORD ENGINE ---
-    function openPasswordModal() {
-        document.getElementById('new-password-input').value = '';
-        document.getElementById('password-modal').classList.add('active');
-    }
-
-    async function submitPasswordChange() {
-        const newPass = document.getElementById('new-password-input').value.trim();
-        if (!newPass) {
-            alert('Password string cannot be empty.');
-            return;
-        }
-
-        const { error } = await _supabase
-            .from('app_users')
-            .update({ password: newPass })
-            .eq('id', currentUser.id);
-
-        if (error) {
-            alert('Failed to update password in cloud.');
-        } else {
-            alert('Password updated successfully!');
-            closeModal('password-modal');
-        }
-    }
-
-    // --- DYNAMIC USER SEED ENGINE ---
-    async function createUserAccount() {
-        const username = document.getElementById('new-user-name').value.trim().toLowerCase();
-        const password = document.getElementById('new-user-pass').value.trim();
-
-        if (!username || !password) {
-            alert('Please supply both username and default password values.');
-            return;
-        }
-
-        const { error } = await _supabase
-            .from('app_users')
-            .insert([{ username: username, password: password, role: 'user' }]);
-
-        if (error) {
-            alert('Username might already exist or database rejected the push.');
-        } else {
-            alert(`User account "${username}" created!`);
-            document.getElementById('new-user-name').value = '';
-            populateAssigneeDropdown(); // Refresh assigning lists
-        }
-    }
-
-    async function populateAssigneeDropdown() {
-        const dropdown = document.getElementById('task-assignee');
-        let { data: users } = await _supabase.from('app_users').select('username').eq('role', 'user');
-        
-        dropdown.innerHTML = '';
-        if (users) {
-            users.forEach(u => {
-                const opt = document.createElement('option');
-                opt.value = u.username;
-                opt.innerText = u.username;
-                dropdown.appendChild(opt);
-            });
-        }
-    }
-
-    // --- USER DASHBOARD ENGINE ---
-    async function renderUserView() {
-        const container = document.getElementById('user-task-list');
-        container.innerHTML = '<div class="loading-text">Fetching data from cloud database...</div>';
-
-        let { data: tasks, error } = await _supabase
-            .from('tasks')
-            .select('*')
-            .eq('assignee', currentUser.username)
-            .order('id', { ascending: false });
-
-        container.innerHTML = '';
-
-        if (error || !tasks || tasks.length === 0) {
-            container.innerHTML = '<p style="text-align:center; color:var(--text-light); margin-top:20px;">No tasks assigned to you.</p>';
-            return;
-        }
-
-        tasks.forEach(task => {
-            const div = document.createElement('div');
-            div.className = `task-item ${task.completed ? 'completed' : ''}`;
+        function navigateDashboard() {
+            document.getElementById('view-login').classList.add('hidden');
+            document.getElementById('view-dashboard').classList.remove('hidden');
             
-            div.innerHTML = `
-                <input type="checkbox" class="task-checkbox" 
-                    ${task.completed ? 'checked disabled' : ''} 
-                    onchange="openRemarksModal(${task.id})">
-                <div class="task-details">
-                    <div class="task-text" style="${task.completed ? 'text-decoration: line-through; color: var(--text-light);' : ''}">${task.description}</div>
-                    ${task.completed ? `
-                        <div class="task-meta">Accomplished: ${task.timestamp}</div>
-                        ${task.remarks ? `<div class="task-remarks">Remarks: ${task.remarks}</div>` : ''}
-                    ` : '<div class="task-meta">Status: Pending Completion</div>'}
-                </div>
-            `;
-            container.appendChild(div);
-        });
-    }
+            // Set User Interface Badges
+            document.getElementById('display-user-badge').innerText = `Active User: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
+            
+            // Display administrative configuration tools conditionally
+            if (currentUser.role === 'admin') {
+                document.getElementById('admin-action-panel').classList.remove('hidden');
+            } else {
+                document.getElementById('admin-action-panel').classList.add('hidden');
+            }
 
-    function openRemarksModal(taskId) {
-        currentTaskToCompleteId = taskId;
-        document.getElementById('modal-remarks-text').value = '';
-        document.getElementById('remarks-modal').classList.add('active');
-    }
-
-    async function submitTaskCompletion() {
-        const remarks = document.getElementById('modal-remarks-text').value.trim() || 'No remarks left.';
-        const formattedDate = new Date().toLocaleString(); 
-
-        const { error } = await _supabase
-            .from('tasks')
-            .update({ completed: true, timestamp: formattedDate, remarks: remarks })
-            .eq('id', currentTaskToCompleteId);
-
-        if (error) alert("Database connection error. Try again.");
-
-        closeModal('remarks-modal');
-        renderUserView();
-    }
-
-    // --- ADMIN TASK LOGICS ---
-    async function createTask() {
-        const assignee = document.getElementById('task-assignee').value;
-        const desc = document.getElementById('task-desc').value.trim();
-
-        if (!assignee) {
-            alert('Please create a user account first before trying to assign tasks.');
-            return;
-        }
-        if (!desc) {
-            alert('Please type a task description before assigning.');
-            return;
+            renderTaskBoardData();
         }
 
-        const { error } = await _supabase
-            .from('tasks')
-            .insert([{ assignee: assignee, description: desc, completed: false }]);
+        // --- DATA PROCESSING AND RENDERING PIPELINE ---
+        async function renderTaskBoardData() {
+            try {
+                let query = _supabase.from('tasks').select('*').order('id', { ascending: true });
 
-        if (error) {
-            alert("Failed to write to database.");
-        } else {
-            document.getElementById('task-desc').value = '';
-            renderAdminView();
-            alert(`Task successfully written to cloud for ${assignee}!`);
+                // Row-Level logic handled client side due to broad pipeline configuration access settings
+                if (currentUser.role !== 'admin') {
+                    query = query.eq('assignee', currentUser.username);
+                }
+
+                let { data: tasks, error } = await query;
+                if (error) throw error;
+
+                const tableBody = document.getElementById('task-data-rows');
+                tableBody.innerHTML = '';
+
+                if (!tasks || tasks.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-secondary);">No tasks allocated in queue.</td></tr>`;
+                    return;
+                }
+
+                tasks.forEach(task => {
+                    const tr = document.createElement('tr');
+                    
+                    const remarksText = task.remarks ? task.remarks : '<span style="color:var(--text-secondary); font-style:italic;">None</span>';
+                    
+                    let actionCellHtml = '';
+                    if (!task.completed) {
+                        actionCellHtml = `<button class="action-icon-btn" onclick="openRemarksModal(${task.id})">Mark Complete</button>`;
+                    } else {
+                        actionCellHtml = `<span style="color:var(--accent-green); font-weight:500;">Closed Verified</span>`;
+                    }
+
+                    tr.innerHTML = `
+                        <td><strong>#${task.id}</strong></td>
+                        <td><span style="color:var(--text-secondary); font-weight:500;">${task.assignee}</span></td>
+                        <td>${task.description}</td>
+                        <td>
+                            <span class="status-pill ${task.completed ? 'status-complete' : 'status-pending'}">
+                                ${task.completed ? 'COMPLETED' : 'PENDING'}
+                            </span>
+                        </td>
+                        <td>${remarksText}</td>
+                        <td>${actionCellHtml}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+
+            } catch (err) {
+                console.error('Data Loading Error:', err);
+                alert('Error loading records from database system.');
+            }
         }
-    }
 
-    async function undoTask(taskId) {
-        if (confirm('Are you sure you want to reopen this task?')) {
-            const { error } = await _supabase
-                .from('tasks')
-                .update({ completed: false, timestamp: null, remarks: null })
-                .eq('id', taskId);
+        // --- ADMIN TASK DEPLOYMENT ENGINE ---
+        async function createNewTask() {
+            const assignee = document.getElementById('task-assignee').value;
+            const description = document.getElementById('task-desc').value.trim();
 
-            if (!error) renderAdminView();
-        }
-    }
+            if (!description) {
+                alert('Task text requirements cannot be empty.');
+                return;
+            }
 
-    async function renderAdminView() {
-        const container = document.getElementById('admin-task-list');
-        container.innerHTML = '<div class="loading-text">Pulling audit log rows...</div>';
+            try {
+                const { error } = await _supabase
+                    .from('tasks')
+                    .insert([{ assignee: assignee, description: description, completed: false }]);
 
-        let { data: tasks, error } = await _supabase
-            .from('tasks')
-            .select('*')
-            .order('id', { ascending: false });
+                if (error) throw error;
 
-        container.innerHTML = '';
+                document.getElementById('task-desc').value = '';
+                renderTaskBoardData();
 
-        if (error || !tasks || tasks.length === 0) {
-            container.innerHTML = '<p style="text-align:center; color:var(--text-light); margin-top:10px;">No tasks created yet.</p>';
-            return;
+            } catch (err) {
+                console.error('Task Insertion Error:', err);
+                alert('Failed to deploy record onto system data tables.');
+            }
         }
 
-        tasks.forEach(task => {
-            const div = document.createElement('div');
-            div.className = 'admin-task-row';
-            div.innerHTML = `
-                <div style="max-width: 75%;">
-                    <strong>[${task.assignee}]</strong> ${task.description}<br>
-                    <span style="font-size:11px; color:var(--text-light)">
-                        ${task.completed ? `Status: ✅ Complete (${task.timestamp})` : 'Status: ⏳ Pending'}
-                    </span>
-                </div>
-                <div>
-                    ${task.completed ? `<button class="btn-danger" onclick="undoTask(${task.id})">Undo / Reset</button>` : ''}
-                </div>
-            `;
-            container.appendChild(div);
-        });
-    }
-</script>
+        // --- CLOSURE AND STATUS OVERRIDE MODAL ACTIONS ---
+        function openRemarksModal(taskId) {
+            currentTaskToCompleteId = taskId;
+            document.getElementById('modal-remarks-input').value = '';
+            document.getElementById('remarks-modal').classList.remove('hidden');
+        }
+
+        function closeRemarksModal() {
+            currentTaskToCompleteId = null;
+            document.getElementById('remarks-modal').classList.add('hidden');
+        }
+
+        async function submitTaskClosure() {
+            if (!currentTaskToCompleteId) return;
+
+            const remarksValue = document.getElementById('modal-remarks-input').value.trim();
+
+            try {
+                const { error } = await _supabase
+                    .from('tasks')
+                    .update({ 
+                        completed: true, 
+                        remarks: remarksValue ? remarksValue : 'Completed without verification comments.' 
+                    })
+                    .eq('id', currentTaskToCompleteId);
+
+                if (error) throw error;
+
+                closeRemarksModal();
+                renderTaskBoardData();
+
+            } catch (err) {
+                console.error('Resolution Error:', err);
+                alert('Failed to verify or update server side task tracking objects.');
+            }
+        }
+    </script>
 </body>
 </html>
