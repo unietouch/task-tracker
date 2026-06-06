@@ -351,7 +351,7 @@
                         <label>Assignee</label>
                         <select id="filter-user" class="fcontrol" onchange="applyFilters()">
                             <option value="all">All Users</option>
-                            </select>
+                        </select>
                     </div>
                     <div class="fgroup" style="margin:0; flex: 1; min-width: 140px;">
                         <label>Status</label>
@@ -531,57 +531,162 @@
         return new Date(taskDateStr) < new Date(currentDateStr);
     }
 
-    function switchSubView(view) {
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        
-        document.getElementById('subview-analytics').classList.add('hidden');
-        document.getElementById('subview-pipeline').classList.add('hidden');
-        document.getElementById('subview-users').classList.add('hidden');
+    // --- MAIN ENGINE INITIALIZATION & AUTH --- //
 
-        if (view === 'analytics') {
-            document.getElementById('nav-btn-analytics').classList.add('active');
-            document.getElementById('subview-analytics').classList.remove('hidden');
-            document.getElementById('topbar-title').innerText = "Dashboard Overview";
-            document.getElementById('topbar-sub').innerText = "Operations overview & analytics (Mon - Sat PH Time)";
-            
-            // Check if user has fetchPipelineData function defined elsewhere
-            if (typeof fetchPipelineData === 'function') {
-                fetchPipelineData();
+    async function handleLogin() {
+        const uInput = document.getElementById('login-username').value.trim();
+        const pInput = document.getElementById('login-password').value.trim();
+
+        if(!uInput || !pInput) {
+            generateToast("Please provide credentials.", "error");
+            return;
+        }
+
+        try {
+            const { data, error } = await _supabase
+                .from('users')
+                .select('*')
+                .eq('username', uInput)
+                .single();
+
+            if (error || !data || data.password !== pInput) {
+                generateToast("Invalid profile configurations or credentials.", "error");
+                return;
             }
-        } else if (view === 'pipeline') {
-            document.getElementById('nav-btn-pipeline').classList.add('active');
-            document.getElementById('subview-pipeline').classList.remove('hidden');
-            document.getElementById('topbar-title').innerText = "All Tasks Pipeline";
-            document.getElementById('topbar-sub').innerText = "Manage and filter operational tasks";
+
+            sessionUser = data;
+            generateToast(`Welcome, ${sessionUser.display_name || sessionUser.username}`);
             
-            // Only show Admin Creation and Filter panels if the user is an admin
-            if (sessionUser && sessionUser.role === 'admin') {
-                document.getElementById('admin-creation-panel').classList.remove('hidden');
-                document.getElementById('admin-filter-panel').classList.remove('hidden');
-                populateUserFilterDropdown();
-            } else {
-                document.getElementById('admin-creation-panel').classList.add('hidden');
-                document.getElementById('admin-filter-panel').classList.add('hidden');
+            document.getElementById('view-login').classList.add('hidden');
+            document.getElementById('view-dashboard').classList.remove('hidden');
+
+            // Set profile cards
+            document.getElementById('sidebar-name').innerText = sessionUser.display_name || sessionUser.username;
+            document.getElementById('sidebar-role').innerText = sessionUser.role.toUpperCase();
+            document.getElementById('sidebar-avatar').innerText = (sessionUser.display_name || sessionUser.username).substring(0, 2);
+
+            if(sessionUser.role === 'admin') {
+                document.getElementById('nav-btn-users').classList.remove('hidden');
             }
-        } else if (view === 'users') {
-            document.getElementById('nav-btn-users').classList.add('active');
-            document.getElementById('subview-users').classList.remove('hidden');
-            document.getElementById('topbar-title').innerText = "User Management";
-            document.getElementById('topbar-sub').innerText = "Configure operational profiles and permissions";
+
+            await bootstrapSystemData();
+        } catch (err) {
+            generateToast("Database communication exception occurred.", "error");
         }
     }
 
-    // --- NEW FILTERING LOGIC --- //
+    function handleLogout() {
+        sessionUser = null;
+        document.getElementById('view-dashboard').classList.add('hidden');
+        document.getElementById('view-login').classList.remove('hidden');
+        document.getElementById('login-password').value = '';
+        generateToast("Logged out from system successfully.");
+    }
+
+    async function bootstrapSystemData() {
+        try {
+            const { data: users, error: uErr } = await _supabase.from('users').select('*');
+            if(!uErr && users) {
+                dbUserProfilesList = users;
+                dbUsersMap = {};
+                const assigneeDropdown = document.getElementById('task-assignee');
+                assigneeDropdown.innerHTML = '';
+                
+                users.forEach(u => {
+                    dbUsersMap[u.username] = u.display_name || u.username;
+                    let opt = document.createElement('option');
+                    opt.value = u.username;
+                    opt.innerText = u.display_name || u.username;
+                    assigneeDropdown.appendChild(opt);
+                });
+            }
+
+            await fetchPipelineData();
+            if(sessionUser.role === 'admin') {
+                renderUsersTable();
+            }
+        } catch(e) {
+            generateToast("Error synchronizing system registers.", "error");
+        }
+    }
+
+    async function fetchPipelineData() {
+        try {
+            let query = _supabase.from('tasks').select('*').order('created_at', { ascending: false });
+            if (sessionUser.role !== 'admin') {
+                query = query.eq('assignee', sessionUser.username);
+            }
+
+            const { data, error } = await query;
+            if(!error && data) {
+                localTasksCache = data;
+                applyFilters();
+                calculateAndRenderMetrics();
+            }
+        } catch(e) {
+            generateToast("Failure retrieving primary table pipeline.", "error");
+        }
+    }
+
+    // --- PIPELINE RENDERING ENGINE --- //
+
+    function renderTaskTable(tasksToRender) {
+        const rowAnchor = document.getElementById('task-table-rows');
+        rowAnchor.innerHTML = '';
+
+        const titleText = sessionUser.role === 'admin' ? "Global Tasks Record Registry" : "My Personal Assigned Tasks Checklist";
+        document.getElementById('table-view-title').innerText = `${titleText} (${tasksToRender.length} loaded)`;
+
+        if(sessionUser.role !== 'admin') {
+            document.getElementById('th-actions').style.width = "120px";
+        }
+
+        tasksToRender.forEach(t => {
+            const tr = document.createElement('tr');
+            
+            let statusPill = `<span class="pill pill-blue">Pending</span>`;
+            if (t.completed) {
+                statusPill = `<span class="pill pill-green">Done</span>`;
+            } else if (isTaskOverdueAndUnresolved(t)) {
+                statusPill = `<span class="pill pill-red">Missed</span>`;
+            }
+
+            let frequencyPill = `<span class="pill pill-purple">${t.frequency}</span>`;
+            if (t.frequency === 'Daily') frequencyPill = `<span class="pill pill-blue">Daily</span>`;
+            if (t.frequency === 'Weekly') frequencyPill = `<span class="pill pill-amber">Weekly</span>`;
+
+            let actionButtons = '';
+            if (!t.completed) {
+                actionButtons += `<button class="tbl-action" onclick="openClosureModal(${t.id})">Resolve</button>`;
+            }
+            if (sessionUser.role === 'admin') {
+                actionButtons += `<button class="btn-delete" onclick="deleteTaskRecord(${t.id})">Delete</button>`;
+            }
+
+            tr.innerHTML = `
+                <td style="font-family:var(--mono); color:var(--text-muted); font-size:11px;">#${t.id}</td>
+                <td style="font-weight:500;">${dbUsersMap[t.assignee] || t.assignee}</td>
+                <td>${frequencyPill}</td>
+                <td><div style="max-width:320px; white-space:normal; font-weight:400;">${t.description || ''}</div></td>
+                <td class="date-col">${formatTimestampValue(t.created_at)}</td>
+                <td class="date-col">${formatTimestampValue(t.completed_at)}</td>
+                <td>${statusPill}</td>
+                <td><span style="color:var(--text-muted); font-size:12px;">${t.remarks || '—'}</span></td>
+                <td><div style="display:flex; align-items:center;">${actionButtons || '—'}</div></td>
+            `;
+            rowAnchor.appendChild(tr);
+        });
+    }
+
+    // --- FILTER & CONFIG CONTROL logic --- //
 
     function populateUserFilterDropdown() {
         const userSelect = document.getElementById('filter-user');
-        // Keep the "All Users" default option and clear the rest
         userSelect.innerHTML = '<option value="all">All Users</option>';
-        
-        dbUserProfilesList.forEach(user => {
+        dbUserProfilesList.forEach(u => {
             const opt = document.createElement('option');
-            opt.value = user.username; 
-            opt.textContent = user.display_name || user.username;
+            opt.value = u.username; 
+            opt.textContent = u.display_name || u.username;
             userSelect.appendChild(opt);
         });
     }
@@ -594,10 +699,8 @@
         const statusFilter = document.getElementById('filter-status').value;
 
         let filteredTasks = localTasksCache.filter(task => {
-            // 1. User Filter
             if (userFilter !== 'all' && task.assignee !== userFilter) return false;
 
-            // 2. Status Filter
             const isMissed = isTaskOverdueAndUnresolved(task);
             const isDone = task.completed;
             const isPending = !isDone && !isMissed;
@@ -606,31 +709,21 @@
             if (statusFilter === 'pending' && !isPending) return false;
             if (statusFilter === 'missed' && !isMissed) return false;
 
-            // 3. Time Filter (Based on created_at date)
             if (timeFilter !== 'all' && task.created_at) {
                 const taskDate = new Date(task.created_at);
                 const now = new Date();
-
                 if (timeFilter === 'day') {
                     if (taskDate.toDateString() !== now.toDateString()) return false;
                 } else if (timeFilter === 'week') {
-                    // Simple 7-day lookback
-                    const msInDay = 24 * 60 * 60 * 1000;
-                    if ((now - taskDate) / msInDay > 7) return false;
+                    if ((now - taskDate) / (1000 * 60 * 60 * 24) > 7) return false;
                 } else if (timeFilter === 'month') {
                     if (taskDate.getMonth() !== now.getMonth() || taskDate.getFullYear() !== now.getFullYear()) return false;
                 }
             }
-
             return true;
         });
 
-        // Re-render the table with the filtered results
-        if (typeof renderTaskTable === 'function') {
-            renderTaskTable(filteredTasks); 
-        } else {
-            console.warn("renderTaskTable is not defined yet. Please ensure your render function accepts an array of tasks.");
-        }
+        renderTaskTable(filteredTasks);
     }
 
     function resetFilters() {
@@ -639,6 +732,318 @@
         document.getElementById('filter-status').value = 'all';
         applyFilters();
     }
+
+    // --- OPERATIONS ANALYTICS ENGINE --- //
+
+    function calculateAndRenderMetrics() {
+        const total = localTasksCache.length;
+        const completed = localTasksCache.filter(t => t.completed).length;
+        const pending = localTasksCache.filter(t => !t.completed).length;
+        const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        document.getElementById('an-total').innerText = total;
+        document.getElementById('an-completed').innerText = completed;
+        document.getElementById('an-pending').innerText = pending;
+        document.getElementById('an-rate').innerText = `${rate}%`;
+
+        // Bar Chart Activity Summary Rendering
+        const barAnchor = document.getElementById('bar-chart-anchor');
+        barAnchor.innerHTML = '';
+        
+        let userStats = {};
+        dbUserProfilesList.forEach(u => { userStats[u.username] = { done: 0, pending: 0 }; });
+        localTasksCache.forEach(t => {
+            if(!userStats[t.assignee]) userStats[t.assignee] = { done: 0, pending: 0 };
+            if(t.completed) userStats[t.assignee].done++;
+            else userStats[t.assignee].pending++;
+        });
+
+        Object.keys(userStats).forEach(userKey => {
+            const dCount = userStats[userKey].done;
+            const pCount = userStats[userKey].pending;
+            const combined = dCount + pCount;
+            if(combined === 0) return;
+
+            const totalHeightPercentage = Math.min(100, (combined / Math.max(1, localTasksCache.length)) * 250);
+            const doneHeightPct = (dCount / combined) * 100;
+            const pendingHeightPct = (pCount / combined) * 100;
+
+            const wrap = document.createElement('div');
+            wrap.className = 'bar-wrapper';
+            wrap.innerHTML = `
+                <div class="chart-tooltip-bubble">${dbUsersMap[userKey] || userKey}: ${dCount} Done / ${pCount} Pend</div>
+                <div class="bar-pillar-group" style="height:${Math.max(15, totalHeightPercentage)}%;">
+                    <div class="bar-segment seg-pending" style="height:${pendingHeightPct}%;"></div>
+                    <div class="bar-segment seg-completed" style="height:${doneHeightPct}%;"></div>
+                </div>
+                <div class="bar-label-caption">${dbUsersMap[userKey] || userKey}</div>
+            `;
+            barAnchor.appendChild(wrap);
+        });
+
+        // Frequency Distribution Table Engine
+        const freqAnchor = document.getElementById('frequency-dist-anchor');
+        freqAnchor.innerHTML = '';
+        let freqCounts = { 'One-Time': 0, 'Daily': 0, 'Weekly': 0, 'Monthly': 0 };
+        localTasksCache.forEach(t => { if(freqCounts[t.frequency] !== undefined) freqCounts[t.frequency]++; });
+
+        Object.keys(freqCounts).forEach(fKey => {
+            const count = freqCounts[fKey];
+            const div = document.createElement('div');
+            div.className = 'dist-item';
+            div.innerHTML = `
+                <div class="dist-label-group">
+                    <div class="dist-dot-indicator" style="background:${fKey==='Daily'?'var(--accent)':fKey==='Weekly'?'var(--amber)':fKey==='Monthly'?'var(--purple)':'var(--text-muted)'}"></div>
+                    <div class="dist-text-name">${fKey} Tasks Schedule</div>
+                </div>
+                <div class="dist-badge-value">${count} items</div>
+            `;
+            freqAnchor.appendChild(div);
+        });
+
+        // Per-User Matrix Rows Engine
+        const progressAnchor = document.getElementById('progress-rows-anchor');
+        progressAnchor.innerHTML = '';
+        dbUserProfilesList.forEach(u => {
+            const userTasks = localTasksCache.filter(t => t.assignee === u.username);
+            const uTotal = userTasks.length;
+            const uDone = userTasks.filter(t => t.completed).length;
+            const uPct = uTotal > 0 ? Math.round((uDone / uTotal) * 100) : 0;
+
+            const prow = document.createElement('div');
+            prow.className = 'progress-row-item';
+            prow.innerHTML = `
+                <div class="prog-user-meta">${u.display_name || u.username}</div>
+                <div class="prog-track-bar-outer">
+                    <div class="prog-track-bar-inner" style="width: ${uPct}%;"></div>
+                </div>
+                <div class="prog-stats-metric">
+                    <span class="prog-percentage">${uPct}%</span>
+                    <span class="prog-fraction">${uDone} / ${uTotal} Tasks</span>
+                </div>
+            `;
+            progressAnchor.appendChild(prow);
+        });
+
+        // Horizon Radar Generator
+        generateScheduleRadarDeck();
+    }
+
+    function generateScheduleRadarDeck() {
+        const radarDeck = document.getElementById('radar-deck-anchor');
+        radarDeck.innerHTML = '';
+
+        const phDayOfWeek = getPhilippineDayOfWeek(); 
+        if (phDayOfWeek === 0) {
+            radarDeck.innerHTML = `<div style="grid-column: 1/-1; color: var(--text-dim); text-align: center; padding: 12px; font-style: italic;">Operational pipeline suspended on Sundays. Radar standing down.</div>`;
+            return;
+        }
+
+        let recurringTasksMatrix = localTasksCache.filter(t => t.frequency !== 'One-Time');
+        let consolidatedRadarMap = {};
+
+        recurringTasksMatrix.forEach(t => {
+            let matchesRadarWindow = false;
+            let descriptiveScheduleTarget = 'Tomorrow Cycle';
+
+            if (t.frequency === 'Daily') {
+                matchesRadarWindow = true; 
+            } else if (t.frequency === 'Weekly' && t.deadline_day) {
+                const targetDayIndex = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].indexOf(t.deadline_day);
+                if (targetDayIndex === (phDayOfWeek + 1) % 7) {
+                    matchesRadarWindow = true;
+                    descriptiveScheduleTarget = `Next ${t.deadline_day}`;
+                }
+            } else if (t.frequency === 'Monthly' && t.deadline_day_of_month) {
+                const currentPhDayOfMonth = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Manila'})).getDate();
+                if (parseInt(t.deadline_day_of_month) === currentPhDayOfMonth + 1) {
+                    matchesRadarWindow = true;
+                    descriptiveScheduleTarget = `Day ${t.deadline_day_of_month} Cycle`;
+                }
+            }
+
+            if (matchesRadarWindow) {
+                const mapHash = `${t.assignee}_${t.frequency}_${t.description}`;
+                consolidatedRadarMap[mapHash] = {
+                    assignee: t.assignee,
+                    frequency: t.frequency,
+                    description: t.description,
+                    horizon: descriptiveScheduleTarget
+                };
+            }
+        });
+
+        const radarItemsArray = Object.values(consolidatedRadarMap);
+        if(radarItemsArray.length === 0) {
+            radarDeck.innerHTML = `<div style="grid-column: 1/-1; color: var(--text-dim); text-align: center; padding: 12px; font-style: italic;">No automated operations tasks detected on the immediate 48h tracking line.</div>`;
+            return;
+        }
+
+        radarItemsArray.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'radar-card';
+            card.innerHTML = `
+                <div class="radar-card-title">${item.description}</div>
+                <div class="radar-meta">
+                    <span style="color:var(--accent); font-weight:600;">${dbUsersMap[item.assignee] || item.assignee}</span>
+                    <span class="pill pill-purple" style="font-size:10px;">${item.horizon}</span>
+                </div>
+            `;
+            radarDeck.appendChild(card);
+        });
+    }
+
+    // --- WRITE ACTIONS CONTROLLERS --- //
+
+    async function createNewTask() {
+        const assignee = document.getElementById('task-assignee').value;
+        const frequency = document.getElementById('task-frequency').value;
+        const description = document.getElementById('task-desc').value.trim();
+
+        let deadline_day = null;
+        let deadline_day_of_month = null;
+
+        if (frequency === 'Weekly') {
+            deadline_day = document.getElementById('task-deadline-weekly').value;
+        } else if (frequency === 'Monthly') {
+            deadline_day_of_month = parseInt(document.getElementById('task-deadline-monthly').value);
+        }
+
+        if(!description) {
+            generateToast("Please enter task execution parameters.", "error");
+            return;
+        }
+
+        try {
+            const { error } = await _supabase
+                .from('tasks')
+                .insert([{
+                    assignee,
+                    frequency,
+                    description,
+                    deadline_day,
+                    deadline_day_of_month,
+                    completed: false,
+                    remarks: ''
+                }]);
+
+            if(!error) {
+                generateToast("New task dispatched successfully.");
+                document.getElementById('task-desc').value = '';
+                await fetchPipelineData();
+            } else {
+                generateToast("Database operational fault during insertion.", "error");
+            }
+        } catch(e) {
+            generateToast("Critical failure deploying operations task.", "error");
+        }
+    }
+
+    function openClosureModal(id) {
+        selectedTaskIdTarget = id;
+        document.getElementById('closure-comment').value = '';
+        document.getElementById('modal-closure').classList.remove('hidden');
+    }
+
+    function closeClosureModal() {
+        document.getElementById('modal-closure').classList.add('hidden');
+        selectedTaskIdTarget = null;
+    }
+
+    async function executeTaskClosure() {
+        if(!selectedTaskIdTarget) return;
+        const comment = document.getElementById('closure-comment').value.trim();
+
+        try {
+            const { error } = await _supabase
+                .from('tasks')
+                .update({
+                    completed: true,
+                    completed_at: new Date().toISOString(),
+                    remarks: comment || 'Resolved successfully'
+                })
+                .eq('id', selectedTaskIdTarget);
+
+            if(!error) {
+                generateToast("Task marked resolved.");
+                closeClosureModal();
+                await fetchPipelineData();
+            } else {
+                generateToast("Failed updating status coordinates.", "error");
+            }
+        } catch(e) {
+            generateToast("Closure pipeline error encountered.", "error");
+        }
+    }
+
+    async function deleteTaskRecord(id) {
+        if(!confirm("Purge this operation row from the pipeline permanently?")) return;
+        try {
+            const { error } = await _supabase.from('tasks').delete().eq('id', id);
+            if(!error) {
+                generateToast("Task permanently scrubbed.");
+                await fetchPipelineData();
+            }
+        } catch(e) {
+            generateToast("Error purging log line.", "error");
+        }
+    }
+
+    async function saveUserRecord() {
+        const username = document.getElementById('user-username').value.trim();
+        const display_name = document.getElementById('user-display-name').value.trim();
+        const password = document.getElementById('user-password').value.trim();
+        const role = document.getElementById('user-role').value;
+
+        if(!username || !password) {
+            generateToast("Username ID and Password security tokens are required.", "error");
+            return;
+        }
+
+        try {
+            const { error } = await _supabase
+                .from('users')
+                .upsert({ username, display_name, password, role }, { onConflict: 'username' });
+
+            if(!error) {
+                generateToast(`Profile profile register [${username}] synchronized.`);
+                document.getElementById('user-username').value = '';
+                document.getElementById('user-display-name').value = '';
+                document.getElementById('user-password').value = '';
+                await bootstrapSystemData();
+            }
+        } catch(e) {
+            generateToast("Configuration database transmission failure.", "error");
+        }
+    }
+
+    function renderUsersTable() {
+        const rowsAnchor = document.getElementById('users-table-rows');
+        rowsAnchor.innerHTML = '';
+        dbUserProfilesList.forEach(u => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="font-family:var(--mono); font-weight:600;">${u.username}</td>
+                <td>${u.display_name || '—'}</td>
+                <td style="font-family:var(--mono); color:var(--text-muted); font-size:12px;">${u.password}</td>
+                <td><span class="pill ${u.role==='admin'?'pill-red':'pill-blue'}">${u.role.toUpperCase()}</span></td>
+                <td>
+                    <button class="tbl-action" onclick="editUserFields('${u.username}', '${u.display_name||''}', '${u.password}', '${u.role}')">Modify</button>
+                </td>
+            `;
+            rowsAnchor.appendChild(tr);
+        });
+    }
+
+    function editUserFields(u, d, p, r) {
+        document.getElementById('user-username').value = u;
+        document.getElementById('user-display-name').value = d;
+        document.getElementById('user-password').value = p;
+        document.getElementById('user-role').value = r;
+        generateToast(`Pulled details for ${u}. Modify fields above and save to update.`);
+    }
+
+    switchSubView('analytics');
 </script>
 </body>
 </html>
