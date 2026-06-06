@@ -159,6 +159,12 @@
         .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 2fr auto; gap: 12px; align-items: end; }
         .user-form-grid { display: grid; grid-template-columns: 1fr 1.5fr 1fr 1fr auto; gap: 12px; align-items: end; }
 
+        /* New filter styling section */
+        .pipeline-filter-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 20px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 12px; align-items: end; }
+        .pipeline-filter-card .fgroup { margin-bottom: 0; }
+        .btn-reset { background: var(--bg-input); border: 1px solid var(--border-med); color: var(--text-muted); border-radius: var(--r); padding: 10px 16px; cursor: pointer; transition: all 0.15s; font-size: 13px; font-weight: 500; }
+        .btn-reset:hover { border-color: var(--accent); color: var(--text); }
+
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 500; }
         .modal { background: var(--bg-card); border: 1px solid var(--border-med); border-radius: var(--r-xl); width: 90%; max-width: 440px; padding: 26px; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
@@ -336,34 +342,45 @@
                 </div>
             </div>
 
-            <div id="admin-filter-panel" class="create-form-card hidden" style="margin-bottom: 16px; padding: 16px 20px;">
-                <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
-                    <div class="fgroup" style="margin:0; flex: 1; min-width: 140px;">
-                        <label>Timeframe</label>
-                        <select id="filter-time" class="fcontrol" onchange="applyFilters()">
-                            <option value="all">All Time</option>
-                            <option value="day">Today</option>
-                            <option value="week">This Week</option>
-                            <option value="month">This Month</option>
-                        </select>
-                    </div>
-                    <div class="fgroup" style="margin:0; flex: 1; min-width: 140px;">
-                        <label>Assignee</label>
-                        <select id="filter-user" class="fcontrol" onchange="applyFilters()">
-                            <option value="all">All Users</option>
-                        </select>
-                    </div>
-                    <div class="fgroup" style="margin:0; flex: 1; min-width: 140px;">
-                        <label>Status</label>
-                        <select id="filter-status" class="fcontrol" onchange="applyFilters()">
-                            <option value="all">All Statuses</option>
-                            <option value="pending">Pending</option>
-                            <option value="done">Done</option>
-                            <option value="missed">Missed</option>
-                        </select>
-                    </div>
-                    <button class="btn-cancel" style="padding: 10px 16px; margin:0;" onclick="resetFilters()">Clear Filters</button>
+            <div class="pipeline-filter-card">
+                <div class="fgroup">
+                    <label style="display:block; font-size:11px; color:var(--text-muted); margin-bottom:5px; text-transform:uppercase; font-weight:600;">Filter by Assignee</label>
+                    <select id="filter-assignee" class="fcontrol" onchange="applyPipelineFilters()">
+                        <option value="ALL">All Assignees</option>
+                    </select>
                 </div>
+                <div class="fgroup">
+                    <label style="display:block; font-size:11px; color:var(--text-muted); margin-bottom:5px; text-transform:uppercase; font-weight:600;">Filter by Status</label>
+                    <select id="filter-status" class="fcontrol" onchange="applyPipelineFilters()">
+                        <option value="ALL">All Statuses</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="MISSED">Missed</option>
+                    </select>
+                </div>
+                <div class="fgroup">
+                    <label style="display:block; font-size:11px; color:var(--text-muted); margin-bottom:5px; text-transform:uppercase; font-weight:600;">Filter by Month</label>
+                    <select id="filter-month" class="fcontrol" onchange="applyPipelineFilters()">
+                        <option value="ALL">All Months</option>
+                        <option value="01">January</option>
+                        <option value="02">February</option>
+                        <option value="03">March</option>
+                        <option value="04">April</option>
+                        <option value="05">May</option>
+                        <option value="06">June</option>
+                        <option value="07">July</option>
+                        <option value="08">August</option>
+                        <option value="09">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                </div>
+                <div class="fgroup">
+                    <label style="display:block; font-size:11px; color:var(--text-muted); margin-bottom:5px; text-transform:uppercase; font-weight:600;">Filter Specific Date</label>
+                    <input type="date" id="filter-date" class="fcontrol" onchange="applyPipelineFilters()">
+                </div>
+                <button class="btn-reset" onclick="resetPipelineFilters()">Clear Filters</button>
             </div>
 
             <div class="task-panel">
@@ -463,10 +480,10 @@
     const SUPABASE_KEY = "sb_publishable_GMw--3rEN77JEs4V1_12GA_49xoRpyG";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // RESTORED YOUR EXACT WORKING LOGIN STATES
     let sessionUser = null;
     let localTasksCache = [];
     let dbUsersMap = {}; 
+    let dbUserProfilesList = []; 
     let selectedTaskIdTarget = null;
 
     function generateToast(text, statusType = 'success') {
@@ -485,13 +502,19 @@
         const monthlyGroup = document.getElementById('deadline-group-monthly');
         const gridContainer = document.querySelector('.form-grid');
 
-        if(weeklyGroup) weeklyGroup.classList.add('hidden');
-        if(monthlyGroup) monthlyGroup.classList.add('hidden');
+        if(!weeklyGroup || !monthlyGroup || !gridContainer) return;
 
-        if (freq === 'Weekly' && weeklyGroup) {
+        weeklyGroup.classList.add('hidden');
+        monthlyGroup.classList.add('hidden');
+
+        if (freq === 'Weekly') {
             weeklyGroup.classList.remove('hidden');
-        } else if (freq === 'Monthly' && monthlyGroup) {
+            gridContainer.style.gridTemplateColumns = "1fr 1fr 1fr 2fr auto";
+        } else if (freq === 'Monthly') {
             monthlyGroup.classList.remove('hidden');
+            gridContainer.style.gridTemplateColumns = "1fr 1fr 1fr 2fr auto";
+        } else {
+            gridContainer.style.gridTemplateColumns = "1fr 1fr 2fr auto";
         }
     }
 
@@ -527,213 +550,9 @@
         return new Date(taskDateStr) < new Date(currentDateStr);
     }
 
-    // --- YOUR ORIGINAL WORKING LOGIN FUNCTION ---
-    function handleLogin() {
-        const uInput = document.getElementById('login-username').value.trim();
-        const pInput = document.getElementById('login-password').value.trim();
-
-        // Preserving your exact original authentication scheme
-        if (uInput === 'admin' && pInput === 'admin') {
-            sessionUser = { username: 'admin', role: 'admin', display_name: 'Administrator' };
-        } else if (uInput === 'user' && pInput === 'user') {
-            sessionUser = { username: 'user', role: 'staff', display_name: 'Operations Staff' };
-        } else {
-            generateToast("Invalid profile configurations or credentials.", "error");
-            return;
-        }
-
-        generateToast(`Welcome, ${sessionUser.display_name}`);
-        document.getElementById('view-login').classList.add('hidden');
-        document.getElementById('view-dashboard').classList.remove('hidden');
-
-        document.getElementById('sidebar-name').innerText = sessionUser.display_name;
-        document.getElementById('sidebar-role').innerText = sessionUser.role.toUpperCase();
-        document.getElementById('sidebar-avatar').innerText = sessionUser.username.substring(0, 2);
-
-        if (sessionUser.role === 'admin') {
-            document.getElementById('nav-btn-users').classList.remove('hidden');
-        }
-
-        fetchPipelineData();
-    }
-
-    function handleLogout() {
-        sessionUser = null;
-        document.getElementById('view-dashboard').classList.add('hidden');
-        document.getElementById('view-login').classList.remove('hidden');
-        document.getElementById('login-password').value = '';
-        generateToast("Logged out successfully.");
-    }
-
-    async function fetchPipelineData() {
-        try {
-            let query = _supabase.from('tasks').select('*').order('created_at', { ascending: false });
-            
-            // Non-admins only view their own tasks
-            if (sessionUser && sessionUser.role !== 'admin') {
-                query = query.eq('assignee', sessionUser.username);
-            }
-
-            const { data, error } = await query;
-            if (!error && data) {
-                localTasksCache = data;
-                
-                // Build an inline map of unique usernames detected in the dataset
-                dbUsersMap = {};
-                data.forEach(t => {
-                    if (t.assignee) dbUsersMap[t.assignee] = t.assignee;
-                });
-
-                // Populate Assignee options dynamically inside Admin Filter dropdown
-                buildAssigneeFilterOptions();
-
-                // Fire initial filter render
-                applyFilters();
-                calculateAndRenderMetrics();
-            }
-        } catch(e) {
-            generateToast("Failure retrieving task rows.", "error");
-        }
-    }
-
-    // --- NEW LOGIC: POPULATE DROPDOWNS FROM LOGGED TASK ASSIGNEES ---
-    function buildAssigneeFilterOptions() {
-        const filterUserSelect = document.getElementById('filter-user');
-        const taskAssigneeFormSelect = document.getElementById('task-assignee');
-        
-        if (!filterUserSelect) return;
-        
-        // Reset options
-        filterUserSelect.innerHTML = '<option value="all">All Users</option>';
-        if (taskAssigneeFormSelect) taskAssigneeFormSelect.innerHTML = '';
-
-        Object.keys(dbUsersMap).forEach(user => {
-            // Populate filter bar
-            let optFilter = document.createElement('option');
-            optFilter.value = user;
-            optFilter.innerText = user;
-            filterUserSelect.appendChild(optFilter);
-
-            // Populate generation form
-            if (taskAssigneeFormSelect) {
-                let optForm = document.createElement('option');
-                optForm.value = user;
-                optForm.innerText = user;
-                taskAssigneeFormSelect.appendChild(optForm);
-            }
-        });
-    }
-
-    function applyFilters() {
-        if (!localTasksCache) return;
-
-        const timeFilter = document.getElementById('filter-time').value;
-        const userFilter = document.getElementById('filter-user').value;
-        const statusFilter = document.getElementById('filter-status').value;
-
-        let filteredTasks = localTasksCache.filter(task => {
-            if (userFilter !== 'all' && task.assignee !== userFilter) return false;
-
-            const isMissed = isTaskOverdueAndUnresolved(task);
-            const isDone = task.completed;
-            const isPending = !isDone && !isMissed;
-
-            if (statusFilter === 'done' && !isDone) return false;
-            if (statusFilter === 'pending' && !isPending) return false;
-            if (statusFilter === 'missed' && !isMissed) return false;
-
-            if (timeFilter !== 'all' && task.created_at) {
-                const taskDate = new Date(task.created_at);
-                const now = new Date();
-                if (timeFilter === 'day') {
-                    if (taskDate.toDateString() !== now.toDateString()) return false;
-                } else if (timeFilter === 'week') {
-                    if ((now - taskDate) / (1000 * 60 * 60 * 24) > 7) return false;
-                } else if (timeFilter === 'month') {
-                    if (taskDate.getMonth() !== now.getMonth() || taskDate.getFullYear() !== now.getFullYear()) return false;
-                }
-            }
-            return true;
-        });
-
-        renderTaskTable(filteredTasks);
-    }
-
-    function resetFilters() {
-        document.getElementById('filter-time').value = 'all';
-        document.getElementById('filter-user').value = 'all';
-        document.getElementById('filter-status').value = 'all';
-        applyFilters();
-    }
-
-    function renderTaskTable(tasksToRender) {
-        const rowAnchor = document.getElementById('task-table-rows');
-        if(!rowAnchor) return;
-        rowAnchor.innerHTML = '';
-
-        const titleText = sessionUser.role === 'admin' ? "Global Tasks Record Registry" : "My Personal Assigned Tasks Checklist";
-        document.getElementById('table-view-title').innerText = `${titleText} (${tasksToRender.length} loaded)`;
-
-        tasksToRender.forEach(t => {
-            const tr = document.createElement('tr');
-            
-            let statusPill = `<span class="pill pill-blue">Pending</span>`;
-            if (t.completed) {
-                statusPill = `<span class="pill pill-green">Done</span>`;
-            } else if (isTaskOverdueAndUnresolved(t)) {
-                statusPill = `<span class="pill pill-red">Missed</span>`;
-            }
-
-            let frequencyPill = `<span class="pill pill-purple">${t.frequency || 'One-Time'}</span>`;
-            if (t.frequency === 'Daily') frequencyPill = `<span class="pill pill-blue">Daily</span>`;
-            if (t.frequency === 'Weekly') frequencyPill = `<span class="pill pill-amber">Weekly</span>`;
-
-            let actionButtons = '';
-            if (!t.completed) {
-                actionButtons += `<button class="tbl-action" onclick="openClosureModal(${t.id})">Resolve</button>`;
-            }
-            if (sessionUser.role === 'admin') {
-                actionButtons += `<button class="btn-delete" onclick="deleteTaskRecord(${t.id})">Delete</button>`;
-            }
-
-            tr.innerHTML = `
-                <td style="font-family:var(--mono); color:var(--text-muted); font-size:11px;">#${t.id}</td>
-                <td style="font-weight:500;">${t.assignee}</td>
-                <td>${frequencyPill}</td>
-                <td><div style="max-width:320px; white-space:normal; font-weight:400;">${t.description || ''}</div></td>
-                <td class="date-col">${formatTimestampValue(t.created_at)}</td>
-                <td class="date-col">${formatTimestampValue(t.completed_at)}</td>
-                <td>${statusPill}</td>
-                <td><span style="color:var(--text-muted); font-size:12px;">${t.remarks || '—'}</span></td>
-                <td><div style="display:flex; align-items:center;">${actionButtons || '—'}</div></td>
-            `;
-            rowAnchor.appendChild(tr);
-        });
-    }
-
-    function calculateAndRenderMetrics() {
-        const total = localTasksCache.length;
-        const completed = localTasksCache.filter(t => t.completed).length;
-        const pending = localTasksCache.filter(t => !t.completed).length;
-        const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-        document.getElementById('an-total').innerText = total;
-        document.getElementById('an-completed').innerText = completed;
-        document.getElementById('an-pending').innerText = pending;
-        document.getElementById('an-rate').innerText = `${rate}%`;
-
-        // Update view controls depending on active clearance limits
-        if (sessionUser.role === 'admin') {
-            document.getElementById('admin-creation-panel').classList.remove('hidden');
-            document.getElementById('admin-filter-panel').classList.remove('hidden');
-        } else {
-            document.getElementById('admin-creation-panel').classList.add('hidden');
-            document.getElementById('admin-filter-panel').classList.add('hidden');
-        }
-    }
-
     function switchSubView(view) {
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
         document.getElementById('subview-analytics').classList.add('hidden');
         document.getElementById('subview-pipeline').classList.add('hidden');
         document.getElementById('subview-users').classList.add('hidden');
@@ -742,87 +561,634 @@
             document.getElementById('nav-btn-analytics').classList.add('active');
             document.getElementById('subview-analytics').classList.remove('hidden');
             document.getElementById('topbar-title').innerText = "Dashboard Overview";
+            document.getElementById('topbar-sub').innerText = "Operations overview & analytics (Mon - Sat PH Time)";
+            fetchPipelineData();
         } else if (view === 'pipeline') {
             document.getElementById('nav-btn-pipeline').classList.add('active');
             document.getElementById('subview-pipeline').classList.remove('hidden');
-            document.getElementById('topbar-title').innerText = "All Tasks Pipeline";
+            document.getElementById('topbar-title').innerText = "Pipeline Monitor";
+            document.getElementById('topbar-sub').innerText = "Real-time task control index (Mon - Sat PH Time)";
+            fetchPipelineData();
         } else if (view === 'users') {
             document.getElementById('nav-btn-users').classList.add('active');
             document.getElementById('subview-users').classList.remove('hidden');
-            document.getElementById('topbar-title').innerText = "User Management";
+            document.getElementById('topbar-title').innerText = "User Management Dashboard";
+            document.getElementById('topbar-sub').innerText = "Configure active database profiles and credentials";
+            renderUsersManagementTable();
         }
     }
 
-    async function createNewTask() {
-        const assignee = document.getElementById('task-assignee').value;
-        const frequency = document.getElementById('task-frequency').value;
-        const description = document.getElementById('task-desc').value.trim();
+    async function syncSystemUsersDirectory() {
+        try {
+            const { data: records, error } = await _supabase.from('app_users').select('*');
+            if (error) throw error;
+            
+            dbUsersMap = {};
+            dbUserProfilesList = records || [];
+            
+            dbUserProfilesList.forEach(user => {
+                dbUsersMap[user.username] = user.display_name || user.username;
+            });
+            
+            populateDropdownOptions(dbUserProfilesList);
+            populateFilterAssigneeDropdown(dbUserProfilesList);
+        } catch (e) {
+            console.error("Directory Sync Failed:", e);
+        }
+    }
 
-        if(!description) {
-            generateToast("Please enter task execution parameters.", "error");
+    async function handleLogin() {
+        const userVal = document.getElementById('login-username').value.trim();
+        const passVal = document.getElementById('login-password').value;
+
+        if(!userVal || !passVal) {
+            generateToast("All fields required.", "error");
             return;
         }
 
         try {
-            const { error } = await _supabase
-                .from('tasks')
-                .insert([{ assignee, frequency, description, completed: false, remarks: '' }]);
+            const { data: records, error } = await _supabase
+                .from('app_users')
+                .select('*')
+                .eq('username', userVal)
+                .eq('password', passVal);
 
-            if(!error) {
-                generateToast("New task dispatched successfully.");
-                document.getElementById('task-desc').value = '';
-                await fetchPipelineData();
+            if (error) throw error;
+
+            if(records && records.length > 0) {
+                sessionUser = records[0];
+                await syncSystemUsersDirectory();
+                generateToast(`Authorized successfully as ${dbUsersMap[sessionUser.username] || sessionUser.username}`);
+                initializeDashboardLayout();
+            } else {
+                generateToast("Invalid account combinations.", "error");
             }
         } catch(e) {
-            generateToast("Critical failure deploying task.", "error");
+            console.error(e);
+            generateToast("Database network connectivity failure.", "error");
+        }
+    }
+
+    function handleLogout() {
+        sessionUser = null;
+        document.getElementById('view-dashboard').classList.add('hidden');
+        document.getElementById('view-login').classList.remove('hidden');
+    }
+
+    function initializeDashboardLayout() {
+        document.getElementById('view-login').classList.add('hidden');
+        document.getElementById('view-dashboard').classList.remove('hidden');
+
+        document.getElementById('sidebar-name').innerText = dbUsersMap[sessionUser.username] || sessionUser.username;
+        document.getElementById('sidebar-role').innerText = sessionUser.role.toUpperCase();
+        document.getElementById('sidebar-avatar').innerText = sessionUser.username.substring(0,2);
+
+        if(sessionUser.role === 'admin') {
+            document.getElementById('admin-creation-panel').classList.remove('hidden');
+            document.getElementById('nav-btn-users').classList.remove('hidden');
+            document.getElementById('table-view-title').innerText = "Global Operations Master Control Index";
+            document.getElementById('th-actions').innerText = "Actions / Control";
+            toggleFormDeadlineInputs();
+        } else {
+            document.getElementById('admin-creation-panel').classList.add('hidden');
+            document.getElementById('nav-btn-users').classList.add('hidden');
+            document.getElementById('table-view-title').innerText = "Your Pending Action Assignments";
+            document.getElementById('th-actions').innerText = "Actions";
+        }
+
+        switchSubView('analytics');
+    }
+
+    function populateDropdownOptions(allUsers) {
+        const select = document.getElementById('task-assignee');
+        if(!select) return;
+        select.innerHTML = '';
+        allUsers.forEach(user => {
+            if(user.role !== 'admin') {
+                const opt = document.createElement('option');
+                opt.value = user.username;
+                opt.innerText = user.display_name || user.username;
+                select.appendChild(opt);
+            }
+        });
+    }
+
+    function populateFilterAssigneeDropdown(allUsers) {
+        const select = document.getElementById('filter-assignee');
+        if(!select) return;
+        const savedVal = select.value;
+        select.innerHTML = '<option value="ALL">All Assignees</option>';
+        allUsers.forEach(user => {
+            if(user.role !== 'admin') {
+                const opt = document.createElement('option');
+                opt.value = user.username;
+                opt.innerText = user.display_name || user.username;
+                select.appendChild(opt);
+            }
+        });
+        if([...select.options].some(o => o.value === savedVal)) {
+            select.value = savedVal;
+        }
+    }
+
+    async function fetchPipelineData() {
+        try {
+            await syncSystemUsersDirectory();
+            let query = _supabase.from('tasks').select('*');
+
+            if (sessionUser.role !== 'admin') {
+                query = query.eq('assignee', sessionUser.username);
+            } else {
+                query = query.order('id', { ascending: false });
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+
+            localTasksCache = (data || []).filter(task => {
+                const phDay = getPhilippineDayOfWeek(task.created_at);
+                return phDay >= 1 && phDay <= 6;
+            });
+
+            calculateMetricsSummary();
+            renderAnalyticsCharts();
+            renderRadarScheduleEngine();
+            renderTableRows(localTasksCache); // Populate default cache load
+        } catch(e) {
+            console.error(e);
+            generateToast("Failed loading task tracking entries.", "error");
+        }
+    }
+
+    /* FILTERS ALGORITHM LOGIC */
+    function applyPipelineFilters() {
+        const filterAssignee = document.getElementById('filter-assignee').value;
+        const filterStatus = document.getElementById('filter-status').value;
+        const filterMonth = document.getElementById('filter-month').value;
+        const filterDate = document.getElementById('filter-date').value;
+
+        const filteredTasks = localTasksCache.filter(task => {
+            // 1. Assignee matching
+            if (filterAssignee !== 'ALL' && task.assignee !== filterAssignee) {
+                return false;
+            }
+
+            // 2. Status matching
+            const isMissed = isTaskOverdueAndUnresolved(task);
+            let computedStatus = 'PENDING';
+            if (task.completed) computedStatus = 'COMPLETED';
+            else if (isMissed) computedStatus = 'MISSED';
+
+            if (filterStatus !== 'ALL' && computedStatus !== filterStatus) {
+                return false;
+            }
+
+            // Extract structural ISO Components relative to Asia/Manila 
+            if (!task.created_at) return false;
+            const phTimeStr = new Date(task.created_at).toLocaleString('en-US', {timeZone: 'Asia/Manila'});
+            const phDateObj = new Date(phTimeStr);
+            
+            const taskYear = phDateObj.getFullYear();
+            const taskMonth = String(phDateObj.getMonth() + 1).padStart(2, '0');
+            const taskDay = String(phDateObj.getDate()).padStart(2, '0');
+            const taskISODateString = `${taskYear}-${taskMonth}-${taskDay}`; // YYYY-MM-DD format
+
+            // 3. Month matching
+            if (filterMonth !== 'ALL' && taskMonth !== filterMonth) {
+                return false;
+            }
+
+            // 4. Specific Date matching
+            if (filterDate && taskISODateString !== filterDate) {
+                return false;
+            }
+
+            return true;
+        });
+
+        renderTableRows(filteredTasks);
+    }
+
+    function resetPipelineFilters() {
+        document.getElementById('filter-assignee').value = 'ALL';
+        document.getElementById('filter-status').value = 'ALL';
+        document.getElementById('filter-month').value = 'ALL';
+        document.getElementById('filter-date').value = '';
+        renderTableRows(localTasksCache);
+    }
+
+    function calculateMetricsSummary() {
+        const total = localTasksCache.length;
+        const closed = localTasksCache.filter(t => t.completed).length;
+        const open = total - closed;
+        const rate = total > 0 ? Math.round((closed / total) * 100) : 0;
+
+        const totalEl = document.getElementById('an-total');
+        const completedEl = document.getElementById('an-completed');
+        const pendingEl = document.getElementById('an-pending');
+        const rateEl = document.getElementById('an-rate');
+
+        if (totalEl) totalEl.innerText = total;
+        if (completedEl) completedEl.innerText = closed;
+        if (pendingEl) pendingEl.innerText = open;
+        if (rateEl) rateEl.innerText = `${rate}%`;
+    }
+
+    function renderRadarScheduleEngine() {
+        const radarAnchor = document.getElementById('radar-deck-anchor');
+        if (!radarAnchor) return;
+        radarAnchor.innerHTML = '';
+
+        const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+        let upcomingCount = 0;
+
+        localTasksCache.forEach(task => {
+            if (!task.timestamp || task.timestamp === 'One-Time') return;
+
+            const taskDate = new Date(new Date(task.created_at).toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+            const diffTime = Math.abs(nowPH - taskDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays <= 2 && !task.completed) {
+                upcomingCount++;
+                const card = document.createElement('div');
+                card.className = 'radar-card';
+                card.style.borderLeft = '3px solid var(--purple)';
+                card.innerHTML = `
+                    <div class="radar-card-title">${task.description}</div>
+                    <div style="font-size:12px; color:var(--text-muted);">Assignee: <strong>${dbUsersMap[task.assignee] || task.assignee}</strong></div>
+                    <div class="radar-meta">
+                        <span class="pill pill-purple">Upcoming ${task.timestamp}</span>
+                        <span style="color:var(--purple); font-weight:600;">Due in ~${diffDays}d</span>
+                    </div>
+                `;
+                radarAnchor.appendChild(card);
+            }
+        });
+
+        if (upcomingCount === 0) {
+            radarAnchor.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-dim); padding:10px; font-style:italic;">No immediate cycle interventions detected inside the 48h horizon window.</div>`;
+        }
+    }
+
+    function renderAnalyticsCharts() {
+        const barAnchor = document.getElementById('bar-chart-anchor');
+        const freqAnchor = document.getElementById('frequency-dist-anchor');
+        const progAnchor = document.getElementById('progress-rows-anchor');
+
+        if(!barAnchor || !freqAnchor || !progAnchor) return;
+
+        barAnchor.innerHTML = '';
+        freqAnchor.innerHTML = '';
+        progAnchor.innerHTML = '';
+
+        const staffProfilesList = dbUserProfilesList.filter(u => u.role !== 'admin');
+
+        if(staffProfilesList.length === 0) {
+            barAnchor.innerHTML = `<div style="text-align:center; width:100%; color:var(--text-muted);">No active staff users configured.</div>`;
+            progAnchor.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:10px;">No operational staff profiles.</div>`;
+        }
+
+        staffProfilesList.forEach(user => {
+            const userTasks = localTasksCache.filter(t => t.assignee === user.username);
+            const userTotal = userTasks.length;
+            const userClosed = userTasks.filter(t => t.completed).length;
+            const userPending = userTotal - userClosed;
+            const userPct = userTotal > 0 ? Math.round((userClosed / userTotal) * 100) : 0;
+
+            const maxVolumeRef = Math.max(...staffProfilesList.map(u => localTasksCache.filter(t => t.assignee === u.username).length), 1);
+            const closedHeightPct = (userClosed / maxVolumeRef) * 100;
+            const pendingHeightPct = (userPending / maxVolumeRef) * 100;
+
+            const barWrapper = document.createElement('div');
+            barWrapper.className = 'bar-wrapper';
+            barWrapper.innerHTML = `
+                <div class="chart-tooltip-bubble">${user.display_name || user.username}: ${userClosed} Done / ${userPending} Open</div>
+                <div class="bar-pillar-group">
+                    <div class="bar-segment seg-pending" style="height: ${pendingHeightPct}%"></div>
+                    <div class="bar-segment seg-completed" style="height: ${closedHeightPct}%"></div>
+                </div>
+                <div class="bar-label-caption" title="${user.display_name || user.username}">${user.display_name || user.username}</div>
+            `;
+            barAnchor.appendChild(barWrapper);
+
+            const progRow = document.createElement('div');
+            progRow.className = 'progress-row-item';
+            progRow.innerHTML = `
+                <div class="prog-user-meta" title="${user.display_name || user.username}">${user.display_name || user.username}</div>
+                <div class="prog-track-bar-outer">
+                    <div class="prog-track-bar-inner" style="width: ${userPct}%"></div>
+                </div>
+                <div class="prog-stats-metric">
+                    <span class="prog-percentage">${userPct}%</span>
+                    <span class="prog-fraction">${userClosed}/${userTotal} done</span>
+                </div>
+            `;
+            progAnchor.appendChild(progRow);
+        });
+
+        const frequencyMap = { 'One-Time': 0, 'Daily': 0, 'Weekly': 0, 'Monthly': 0 };
+        localTasksCache.forEach(task => {
+            const freqKey = task.timestamp || 'One-Time';
+            if(frequencyMap.hasOwnProperty(freqKey)) {
+                frequencyMap[freqKey]++;
+            }
+        });
+
+        Object.keys(frequencyMap).forEach(key => {
+            const distItem = document.createElement('div');
+            distItem.className = 'dist-item';
+            distItem.innerHTML = `
+                <div class="dist-label-group">
+                    <div class="dist-dot-indicator" style="background:${key==='Daily'?'var(--green)':key==='Weekly'?'var(--amber)':key==='Monthly'?'var(--red)':'var(--accent)'}"></div>
+                    <span class="dist-text-name">${key} Directives</span>
+                </div>
+                <div class="dist-badge-value">${frequencyMap[key]} Tasks</div>
+            `;
+            freqAnchor.appendChild(distItem);
+        });
+    }
+
+    function renderTableRows(tasksDataset) {
+        const tbody = document.getElementById('task-table-rows');
+        if(!tbody) return;
+        tbody.innerHTML = '';
+
+        if(tasksDataset.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted);">No records match specified monitoring parameters.</td></tr>`;
+            return;
+        }
+
+        tasksDataset.forEach(task => {
+            const tr = document.createElement('tr');
+            let actionMarkup = '';
+
+            const isMissed = isTaskOverdueAndUnresolved(task);
+
+            if(!task.completed) {
+                if(sessionUser.username === task.assignee) {
+                    actionMarkup = `<button class="tbl-action" onclick="openClosureModal(${task.id})">Complete</button> `;
+                }
+            } else {
+                actionMarkup = `<span class="pill pill-green" style="margin-right:4px;">Verified</span> `;
+            }
+
+            if(sessionUser.role === 'admin') {
+                actionMarkup += `<button class="btn-delete" onclick="executeTaskDeletion(${task.id})">Delete</button>`;
+            }
+
+            if(!actionMarkup) {
+                actionMarkup = `<span style="color:var(--text-dim); font-size:12px;">Restricted</span>`;
+            }
+
+            let statusBadge = `<span class="pill pill-red">PENDING</span>`;
+            if (task.completed) {
+                statusBadge = `<span class="pill pill-green">COMPLETED</span>`;
+            } else if (isMissed) {
+                statusBadge = `<span class="pill pill-amber">MISSED</span>`;
+            }
+
+            let displayFrequency = task.timestamp || 'One-Time';
+            if(task.deadline_target) {
+                displayFrequency += ` (${task.deadline_target})`;
+            }
+
+            tr.innerHTML = `
+                <td class="date-col">#${task.id}</td>
+                <td><strong>${dbUsersMap[task.assignee] || task.assignee}</strong></td>
+                <td><span class="pill pill-blue">${displayFrequency}</span></td>
+                <td>${task.description}</td>
+                <td class="date-col">${formatTimestampValue(task.created_at)}</td>
+                <td class="date-col">${formatTimestampValue(task.completed_at)}</td>
+                <td>${statusBadge}</td>
+                <td><span style="color:var(--text-muted);">${task.remarks || '-'}</span></td>
+                <td>${actionMarkup}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function createNewTask() {
+        const assignee = document.getElementById('task-assignee').value;
+        const freq = document.getElementById('task-frequency').value;
+        const desc = document.getElementById('task-desc').value.trim();
+        
+        let deadlineVal = null;
+        if(freq === 'Weekly') {
+            deadlineVal = document.getElementById('task-deadline-weekly').value;
+        } else if(freq === 'Monthly') {
+            const dayNum = parseInt(document.getElementById('task-deadline-monthly').value);
+            if(isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
+                generateToast("Please declare a numeric day rule ranging from 1 to 31.", "error");
+                return;
+            }
+            deadlineVal = "Day " + dayNum;
+        }
+
+        if(!assignee || !desc) {
+            generateToast("Directives target tracking properties missing.", "error");
+            return;
+        }
+
+        try {
+            const { error } = await _supabase.from('tasks').insert([{
+                assignee: assignee,
+                description: desc,
+                completed: false,
+                timestamp: freq,
+                deadline_target: deadlineVal
+            }]);
+
+            if (error) throw error;
+
+            generateToast("Task deployed successfully.");
+            document.getElementById('task-desc').value = '';
+            fetchPipelineData();
+        } catch(e) {
+            console.error(e);
+            generateToast("Error writing to database table.", "error");
+        }
+    }
+
+    async function executeTaskDeletion(taskId) {
+        if(sessionUser.role !== 'admin') return;
+        if(!confirm(`Permanently wipe Task #${taskId} from systems record?`)) return;
+
+        try {
+            const { error } = await _supabase.from('tasks').delete().eq('id', parseInt(taskId));
+            if (error) throw error;
+
+            generateToast(`Task #${taskId} successfully dropped.`, "success");
+            fetchPipelineData();
+        } catch(e) {
+            console.error(e);
+            generateToast("Failed to clear database entry row.", "error");
+        }
+    }
+
+    async function renderUsersManagementTable() {
+        const tbody = document.getElementById('users-table-rows');
+        if(!tbody) return;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Syncing secure indexes...</td></tr>`;
+
+        try {
+            const { data: users, error } = await _supabase.from('app_users').select('*').order('username', { ascending: true });
+            if (error) throw error;
+
+            tbody.innerHTML = '';
+            users.forEach(user => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" class="fcontrol date-col" style="padding: 5px 10px; font-weight:600;" id="edit-user-${user.id}" value="${user.username || ''}"></td>
+                    <td><input type="text" class="fcontrol" style="padding: 5px 10px;" id="edit-display-${user.id}" value="${user.display_name || ''}"></td>
+                    <td><input type="text" class="fcontrol" style="padding: 5px 10px;" id="edit-pass-${user.id}" value="${user.password || ''}"></td>
+                    <td>
+                        <select class="fcontrol" style="padding: 4px 8px;" id="edit-role-${user.id}">
+                            <option value="staff" ${user.role === 'staff' ? 'selected' : ''}>Staff</option>
+                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button class="tbl-action" style="border-color:var(--accent); color:var(--accent);" onclick="updateInlineUser(${user.id}, '${user.username}')">Update</button>
+                        ${user.username !== 'admin' ? `<button class="btn-delete" onclick="deleteUserRecord(${user.id}, '${user.username}')">Delete</button>` : ''}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            console.error(e);
+            generateToast("Could not download system configuration map.", "error");
+        }
+    }
+
+    async function saveUserRecord() {
+        const u = document.getElementById('user-username').value.trim();
+        const d = document.getElementById('user-display-name').value.trim();
+        const p = document.getElementById('user-password').value.trim();
+        const r = document.getElementById('user-role').value;
+
+        if(!u || !p) {
+            generateToast("Username and Password tokens are mandatory.", "error");
+            return;
+        }
+
+        try {
+            const { error } = await _supabase.from('app_users').insert([{
+                username: u, 
+                display_name: d || u, 
+                password: p, 
+                role: r
+            }]);
+            if (error) throw error;
+
+            generateToast(`Configuration profile saved for '${u}'`);
+            document.getElementById('user-username').value = '';
+            document.getElementById('user-display-name').value = '';
+            document.getElementById('user-password').value = '';
+            
+            await syncSystemUsersDirectory();
+            renderUsersManagementTable();
+        } catch(e) {
+            console.error(e);
+            generateToast("Error processing data configuration insertion.", "error");
+        }
+    }
+
+    async function updateInlineUser(userId, originalUsername) {
+        const newUsername = document.getElementById(`edit-user-${userId}`).value.trim();
+        const newDisplay = document.getElementById(`edit-display-${userId}`).value.trim();
+        const newPass = document.getElementById(`edit-pass-${userId}`).value.trim();
+        const newRole = document.getElementById(`edit-role-${userId}`).value;
+
+        if(!newUsername || !newPass) {
+            generateToast("Username and Password tokens cannot be left empty.", "error");
+            return;
+        }
+
+        try {
+            const { error: userUpdateError } = await _supabase.from('app_users').update({
+                username: newUsername,
+                display_name: newDisplay || newUsername,
+                password: newPass,
+                role: newRole
+            }).eq('id', parseInt(userId));
+
+            if (userUpdateError) throw userUpdateError;
+
+            if (originalUsername !== newUsername) {
+                const { error: taskUpdateError } = await _supabase.from('tasks')
+                    .update({ assignee: newUsername })
+                    .eq('assignee', originalUsername);
+
+                if (taskUpdateError) throw taskUpdateError;
+            }
+
+            generateToast(`User profile updated successfully.`);
+            
+            if (sessionUser.id === userId) {
+                sessionUser.username = newUsername;
+                sessionUser.role = newRole;
+                document.getElementById('sidebar-name').innerText = newDisplay || newUsername;
+                document.getElementById('sidebar-role').innerText = newRole.toUpperCase();
+            }
+
+            await syncSystemUsersDirectory();
+            renderUsersManagementTable();
+        } catch (e) {
+            console.error(e);
+            generateToast("Update payload tracking error. Check formatting values.", "error");
+        }
+    }
+
+    async function deleteUserRecord(userId, username) {
+        if(username === 'admin') return;
+        if(!confirm(`Completely drop profile credentials for target '${username}'?`)) return;
+
+        try {
+            const { error } = await _supabase.from('app_users').delete().eq('id', parseInt(userId));
+            if (error) throw error;
+
+            generateToast(`User profile '${username}' permanently removed.`);
+            await syncSystemUsersDirectory();
+            renderUsersManagementTable();
+        } catch (e) {
+            console.error(e);
+            generateToast("Failed to execute data line destruction.", "error");
         }
     }
 
     function openClosureModal(id) {
-        selectedTaskIdTarget = id;
+        selectedTaskIdTarget = parseInt(id); 
         document.getElementById('closure-comment').value = '';
         document.getElementById('modal-closure').classList.remove('hidden');
     }
 
     function closeClosureModal() {
-        document.getElementById('modal-closure').classList.add('hidden');
         selectedTaskIdTarget = null;
+        document.getElementById('modal-closure').classList.add('hidden');
     }
 
     async function executeTaskClosure() {
         if(!selectedTaskIdTarget) return;
-        const comment = document.getElementById('closure-comment').value.trim();
+        const text = document.getElementById('closure-comment').value.trim() || "Operations confirmed completed.";
 
         try {
-            const { error } = await _supabase
-                .from('tasks')
-                .update({ completed: true, completed_at: new Date().toISOString(), remarks: comment || 'Resolved successfully' })
-                .eq('id', selectedTaskIdTarget);
+            const { error } = await _supabase.from('tasks').update({
+                completed: true,
+                remarks: text,
+                completed_at: new Date().toISOString()
+            }).eq('id', selectedTaskIdTarget);
 
-            if(!error) {
-                generateToast("Task marked resolved.");
-                closeClosureModal();
-                await fetchPipelineData();
-            }
+            if (error) throw error;
+
+            generateToast("Pipeline status updated.");
+            closeClosureModal();
+            fetchPipelineData();
         } catch(e) {
-            generateToast("Closure error encountered.", "error");
+            console.error(e);
+            generateToast("Failed updating status lines.", "error");
         }
     }
-
-    async function deleteTaskRecord(id) {
-        if(!confirm("Purge this row permanently?")) return;
-        try {
-            const { error } = await _supabase.from('tasks').delete().eq('id', id);
-            if(!error) {
-                generateToast("Task permanently scrubbed.");
-                await fetchPipelineData();
-            }
-        } catch(e) {
-            generateToast("Error purging line.", "error");
-        }
-    }
-
-    switchSubView('analytics');
 </script>
 </body>
 </html>
