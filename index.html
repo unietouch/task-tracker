@@ -396,9 +396,9 @@
                             <tr>
                                 <th>Username ID</th>
                                 <th>Display Profile Name</th>
-                                <th>Password</th>
+                                <th>Password Token</th>
                                 <th>Clearance Role</th>
-                                <th style="width:120px;">Control</th>
+                                <th style="width:140px;">Control Actions</th>
                             </tr>
                         </thead>
                         <tbody id="users-table-rows"></tbody>
@@ -434,7 +434,7 @@
 
     let sessionUser = null;
     let localTasksCache = [];
-    let dbUsersMap = {}; // Dynamically filled from 'app_users'
+    let dbUsersMap = {}; 
     let selectedTaskIdTarget = null;
 
     function generateToast(text, statusType = 'success') {
@@ -488,7 +488,6 @@
         }
     }
 
-    // Dynamic User Directory Sync Strategy
     async function syncSystemUsersDirectory() {
         try {
             const { data: records, error } = await _supabase.from('app_users').select('*');
@@ -515,7 +514,6 @@
         }
 
         try {
-            // Read directly from user lookup configuration table
             const { data: records, error } = await _supabase
                 .from('app_users')
                 .select('*')
@@ -583,7 +581,7 @@
 
     async function fetchPipelineData() {
         try {
-            await syncSystemUsersDirectory(); // Keep names strictly fresh
+            await syncSystemUsersDirectory();
             let query = _supabase.from('tasks').select('*');
 
             if (sessionUser.role !== 'admin') {
@@ -597,7 +595,7 @@
 
             localTasksCache = (data || []).filter(task => {
                 const phDay = getPhilippineDayOfWeek(task.created_at);
-                return phDay >= 1 && phDay <= 6; // Mon-Sat filter
+                return phDay >= 1 && phDay <= 6;
             });
 
             calculateMetricsSummary();
@@ -714,7 +712,7 @@
         }
     }
 
-    /* ── USER MANAGEMENT FUNCTIONS (ADMIN ONLY) ── */
+    /* ── USER MANAGEMENT FUNCTIONS (FIXED) ── */
     async function renderUsersManagementTable() {
         const tbody = document.getElementById('users-table-rows');
         if(!tbody) return;
@@ -728,18 +726,18 @@
             users.forEach(user => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="date-col"><strong>${user.username}</strong></td>
-                    <td><input type="text" class="fcontrol" style="padding: 5px 10px;" id="edit-display-${user.username}" value="${user.display_name || ''}"></td>
-                    <td><input type="text" class="fcontrol" style="padding: 5px 10px;" id="edit-pass-${user.username}" value="${user.password}"></td>
+                    <td><input type="text" class="fcontrol date-col" style="padding: 5px 10px; font-weight:600;" id="edit-user-${user.id}" value="${user.username || ''}"></td>
+                    <td><input type="text" class="fcontrol" style="padding: 5px 10px;" id="edit-display-${user.id}" value="${user.display_name || ''}"></td>
+                    <td><input type="text" class="fcontrol" style="padding: 5px 10px;" id="edit-pass-${user.id}" value="${user.password || ''}"></td>
                     <td>
-                        <select class="fcontrol" style="padding: 4px 8px;" id="edit-role-${user.username}">
+                        <select class="fcontrol" style="padding: 4px 8px;" id="edit-role-${user.id}">
                             <option value="staff" ${user.role === 'staff' ? 'selected' : ''}>Staff</option>
                             <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
                         </select>
                     </td>
                     <td>
-                        <button class="tbl-action" style="border-color:var(--accent); color:var(--accent);" onclick="updateInlineUser('${user.username}')">Update</button>
-                        ${user.username !== 'admin' ? `<button class="btn-delete" onclick="deleteUserRecord('${user.username}')">Delete</button>` : ''}
+                        <button class="tbl-action" style="border-color:var(--accent); color:var(--accent);" onclick="updateInlineUser(${user.id}, '${user.username}')">Update</button>
+                        ${user.username !== 'admin' ? `<button class="btn-delete" onclick="deleteUserRecord(${user.id}, '${user.username}')">Delete</button>` : ''}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -756,14 +754,17 @@
         const p = document.getElementById('user-password').value.trim();
         const r = document.getElementById('user-role').value;
 
-        if(!u || !d || !p) {
-            generateToast("Please fill all user property inputs.", "error");
+        if(!u || !p) {
+            generateToast("Username and Password tokens are mandatory.", "error");
             return;
         }
 
         try {
-            const { error } = await _supabase.from('app_users').upsert([{
-                username: u, display_name: d, password: p, role: r
+            const { error } = await _supabase.from('app_users').insert([{
+                username: u, 
+                display_name: d || u, 
+                password: p, 
+                role: r
             }]);
             if (error) throw error;
 
@@ -780,40 +781,58 @@
         }
     }
 
-    async function updateInlineUser(username) {
-        const newDisplay = document.getElementById(`edit-display-${username}`).value.trim();
-        const newPass = document.getElementById(`edit-pass-${username}`).value.trim();
-        const newRole = document.getElementById(`edit-role-${username}`).value;
+    async function updateInlineUser(userId, originalUsername) {
+        const newUsername = document.getElementById(`edit-user-${userId}`).value.trim();
+        const newDisplay = document.getElementById(`edit-display-${userId}`).value.trim();
+        const newPass = document.getElementById(`edit-pass-${userId}`).value.trim();
+        const newRole = document.getElementById(`edit-role-${userId}`).value;
 
-        if(!newDisplay || !newPass) {
-            generateToast("Fields cannot be saved empty.", "error");
+        if(!newUsername || !newPass) {
+            generateToast("Username and Password tokens cannot be left empty.", "error");
             return;
         }
 
         try {
-            const { error } = await _supabase.from('app_users').update({
-                display_name: newDisplay,
+            const { error: userUpdateError } = await _supabase.from('app_users').update({
+                username: newUsername,
+                display_name: newDisplay || newUsername,
                 password: newPass,
                 role: newRole
-            }).eq('username', username);
+            }).eq('id', userId);
 
-            if (error) throw error;
+            if (userUpdateError) throw userUpdateError;
 
-            generateToast(`User profile '${username}' updated successfully.`);
+            if (originalUsername !== newUsername) {
+                const { error: taskUpdateError } = await _supabase.from('tasks')
+                    .update({ assignee: newUsername })
+                    .eq('assignee', originalUsername);
+
+                if (taskUpdateError) throw taskUpdateError;
+            }
+
+            generateToast(`User profile updated successfully.`);
+            
+            if (sessionUser.id === userId) {
+                sessionUser.username = newUsername;
+                sessionUser.role = newRole;
+                document.getElementById('sidebar-name').innerText = newDisplay || newUsername;
+                document.getElementById('sidebar-role').innerText = newRole.toUpperCase();
+            }
+
             await syncSystemUsersDirectory();
             renderUsersManagementTable();
         } catch (e) {
             console.error(e);
-            generateToast("Update processing failed.", "error");
+            generateToast("Update payload tracking error (400). Check values.", "error");
         }
     }
 
-    async function deleteUserRecord(username) {
+    async function deleteUserRecord(userId, username) {
         if(username === 'admin') return;
         if(!confirm(`Completely drop profile credentials for target '${username}'?`)) return;
 
         try {
-            const { error } = await _supabase.from('app_users').delete().eq('username', username);
+            const { error } = await _supabase.from('app_users').delete().eq('id', userId);
             if (error) throw error;
 
             generateToast(`User profile '${username}' permanently removed.`);
