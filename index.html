@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Connected Task Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --success: #16a34a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        h2 { margin-bottom: 20px; font-size: 24px; text-align: center; color: #111827; }
+        h3 { margin-top: 20px; margin-bottom: 10px; font-size: 18px; color: #374151; }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: 500; }
+
+        input[type="text"], input[type="password"], select, textarea {
+            width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;
+        }
+
+        button {
+            width: 100%; padding: 11px; background-color: var(--primary); color: white;
+            border: none; border-radius: 6px; font-size: 16px; font-weight: 500; cursor: pointer;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        .btn-danger { background-color: #dc2626; padding: 6px 12px; font-size: 12px; width: auto; }
+        .btn-danger:hover { background-color: #b91c1c; }
+
+        .header-nav {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        }
+        .user-info { font-weight: 600; font-size: 14px; }
+        .logout-lnk { color: var(--primary); cursor: pointer; font-size: 14px; text-decoration: underline; }
+
+        .task-item { display: flex; align-items: flex-start; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; background: #fff; }
+        .task-item.completed { background-color: #f0fdf4; border-color: #bbf7d0; }
+        .task-checkbox { margin-top: 4px; margin-right: 12px; width: 18px; height: 18px; cursor: pointer; }
+        .task-details { flex-grow: 1; }
+        .task-text { font-size: 15px; font-weight: 500; }
+        .task-meta { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+        .task-remarks { font-size: 13px; color: #047857; margin-top: 4px; font-style: italic; }
+
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 100;
+        }
+        .modal.active { display: flex; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; }
+        .admin-task-row { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border); }
+        
+        .loading-text { text-align: center; color: var(--text-light); padding: 10px; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="screen-login" class="screen active">
+        <h2>Account Login</h2>
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="login-username" placeholder="Enter username">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="Enter password">
+        </div>
+        <button onclick="handleLogin()">Login</button>
+        <div style="margin-top: 15px; font-size: 12px; color: var(--text-light); text-align: center;">
+            Admin: <strong>admin</strong> / <strong>admin123</strong><br>
+            Users: <strong>user1</strong> or <strong>user2</strong> / password: <strong>123</strong>
+        </div>
+    </div>
+
+    <div id="screen-user" class="screen">
+        <div class="header-nav">
+            <div class="user-info">Welcome, <span id="display-user">User</span></div>
+            <div class="logout-lnk" onclick="logout()">Logout</div>
+        </div>
+        <h2>My Assigned Tasks</h2>
+        <div id="user-task-list"></div>
+    </div>
+
+    <div id="screen-admin" class="screen">
+        <div class="header-nav">
+            <div class="user-info">System Administrator</div>
+            <div class="logout-lnk" onclick="logout()">Logout</div>
+        </div>
+        <h2>Admin Management Panel</h2>
+        
+        <h3>Assign New Task</h3>
+        <div class="form-group">
+            <label>Assign To</label>
+            <select id="task-assignee">
+                <option value="user1">user1</option>
+                <option value="user2">user2</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Task Description</label>
+            <input type="text" id="task-desc" placeholder="What needs to be done?">
+        </div>
+        <button onclick="createTask()">Assign Task</button>
+
+        <h3 style="margin-top: 30px;">All Tasks Audit & Reset</h3>
+        <div id="admin-task-list"></div>
+    </div>
+</div>
+
+<div id="remarks-modal" class="modal">
+    <div class="modal-content">
+        <h3>Complete Task</h3>
+        <div class="form-group">
+            <label>Add Completion Remarks / Notes</label>
+            <textarea id="modal-remarks-text" rows="3" placeholder="Enter details..."></textarea>
+        </div>
+        <button onclick="submitTaskCompletion()">Submit & Lock Task</button>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // CONFIGURATION: PASTE YOUR SUPABASE CREDENTIALS HERE
+    // ==========================================
+    const SUPABASE_URL = "sb_publishable_GMw--3rEN77JEs4V1_12GA_49xoRpyG"; 
+    const SUPABASE_KEY = "https://vwuhpzpagmahzaqyczuw.supabase.co/rest/v1/";
+    
+    // Initialize Supabase Client
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // Hardcoded simple authentication mapping
+    const userDatabase = {
+        "admin": { password: "admin123", role: "admin" },
+        "user1": { password: "123", role: "user" },
+        "user2": { password: "123", role: "user" }
+    };
+
+    let currentUser = null;
+    let currentTaskToCompleteId = null;
+
+    // --- AUTHENTICATION ---
+    function handleLogin() {
+        const userIn = document.getElementById('login-username').value.trim();
+        const passIn = document.getElementById('login-password').value;
+
+        if (userDatabase[userIn] && userDatabase[userIn].password === passIn) {
+            currentUser = { username: userIn, role: userDatabase[userIn].role };
+            document.getElementById('login-username').value = '';
+            document.getElementById('login-password').value = '';
+            navigateDashboard();
+        } else {
+            alert('Invalid username or password.');
+        }
+    }
+
+    function logout() {
+        currentUser = null;
+        switchScreen('screen-login');
+    }
+
+    function switchScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function navigateDashboard() {
+        if (currentUser.role === 'admin') {
+            switchScreen('screen-admin');
+            renderAdminView();
+        } else {
+            switchScreen('screen-user');
+            document.getElementById('display-user').innerText = currentUser.username;
+            renderUserView();
+        }
+    }
+
+    // --- USER DASHBOARD ENGINE (FETCH FROM CLOUD) ---
+    async function renderUserView() {
+        const container = document.getElementById('user-task-list');
+        container.innerHTML = '<div class="loading-text">Fetching live data from cloud database...</div>';
+
+        // Query cloud table for this logged-in user
+        let { data: tasks, error } = await _supabase
+            .from('tasks')
+            .select('*')
+            .eq('assignee', currentUser.username)
+            .order('id', { ascending: false });
+
+        container.innerHTML = '';
+
+        if (error || !tasks || tasks.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:var(--text-light); margin-top:20px;">No tasks assigned to you.</p>';
+            return;
+        }
+
+        tasks.forEach(task => {
+            const div = document.createElement('div');
+            div.className = `task-item ${task.completed ? 'completed' : ''}`;
+            
+            div.innerHTML = `
+                <input type="checkbox" class="task-checkbox" 
+                    ${task.completed ? 'checked disabled' : ''} 
+                    onchange="openRemarksModal(${task.id})">
+                <div class="task-details">
+                    <div class="task-text" style="${task.completed ? 'text-decoration: line-through; color: var(--text-light);' : ''}">${task.description}</div>
+                    ${task.completed ? `
+                        <div class="task-meta">Accomplished: ${task.timestamp}</div>
+                        ${task.remarks ? `<div class="task-remarks">Remarks: ${task.remarks}</div>` : ''}
+                    ` : '<div class="task-meta">Status: Pending Completion</div>'}
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function openRemarksModal(taskId) {
+        currentTaskToCompleteId = taskId;
+        document.getElementById('modal-remarks-text').value = '';
+        document.getElementById('remarks-modal').classList.add('active');
+    }
+
+    async function submitTaskCompletion() {
+        const remarks = document.getElementById('modal-remarks-text').value.trim() || 'No remarks left.';
+        const formattedDate = new Date().toLocaleString(); 
+
+        // Update database row dynamically matching the task ID
+        const { error } = await _supabase
+            .from('tasks')
+            .update({ 
+                completed: true, 
+                timestamp: formattedDate, 
+                remarks: remarks 
+            })
+            .eq('id', currentTaskToCompleteId);
+
+        if (error) alert("Database connection error. Try again.");
+
+        document.getElementById('remarks-modal').classList.remove('active');
+        renderUserView();
+    }
+
+    // --- ADMIN ENGINE (WRITE/REVERT TO CLOUD) ---
+    async function createTask() {
+        const assignee = document.getElementById('task-assignee').value;
+        const desc = document.getElementById('task-desc').value.trim();
+
+        if (!desc) {
+            alert('Please type a task description before assigning.');
+            return;
+        }
+
+        // Insert new structural row row directly into your Supabase table
+        const { error } = await _supabase
+            .from('tasks')
+            .insert([{ assignee: assignee, description: desc, completed: false }]);
+
+        if (error) {
+            alert("Failed to write to database.");
+        } else {
+            document.getElementById('task-desc').value = '';
+            renderAdminView();
+            alert(`Task successfully written to cloud for ${assignee}!`);
+        }
+    }
+
+    async function undoTask(taskId) {
+        if (confirm('Are you sure you want to reopen this task and clear cloud execution metrics?')) {
+            const { error } = await _supabase
+                .from('tasks')
+                .update({ completed: false, timestamp: null, remarks: null })
+                .eq('id', taskId);
+
+            if (!error) renderAdminView();
+        }
+    }
+
+    async function renderAdminView() {
+        const container = document.getElementById('admin-task-list');
+        container.innerHTML = '<div class="loading-text">Pulling audit log rows...</div>';
+
+        let { data: tasks, error } = await _supabase
+            .from('tasks')
+            .select('*')
+            .order('id', { ascending: false });
+
+        container.innerHTML = '';
+
+        if (error || !tasks || tasks.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:var(--text-light); margin-top:10px;">No tasks created yet.</p>';
+            return;
+        }
+
+        tasks.forEach(task => {
+            const div = document.createElement('div');
+            div.className = 'admin-task-row';
+            div.innerHTML = `
+                <div style="max-width: 75%;">
+                    <strong>[${task.assignee}]</strong> ${task.description}<br>
+                    <span style="font-size:11px; color:var(--text-light)">
+                        ${task.completed ? `Status: ✅ Complete (${task.timestamp})` : 'Status: ⏳ Pending'}
+                    </span>
+                </div>
+                <div>
+                    ${task.completed ? `<button class="btn-danger" onclick="undoTask(${task.id})">Undo / Reset</button>` : ''}
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+</script>
+</body>
+</html>
