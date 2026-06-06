@@ -4,10 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Task Tracking Pipeline</title>
-    </head>
+    <style>
+        /* Base formatting styles */
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .status-done { background-color: #d4edda; color: #155724; }
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        
+        /* Admin specific delete button styling */
+        .btn-delete {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-delete:hover {
+            background-color: #bd2130;
+        }
+    </style>
+</head>
 <body>
 
     <div id="metrics-summary"></div>
+    
     <table id="task-table">
         <thead>
             <tr>
@@ -16,6 +41,7 @@
                 <th>Description</th>
                 <th>Created Date (PH)</th>
                 <th>Status</th>
+                <th id="actions-header" style="display: none;">Actions</th>
             </tr>
         </thead>
         <tbody id="task-rows">
@@ -25,7 +51,7 @@
     <script>
         // Global variables for session management and local data cache
         let _supabase; 
-        let sessionUser = { username: "current_user", role: "staff" }; // Fallback placeholder
+        let sessionUser = { username: "current_user", role: "admin" }; // Switch role to 'staff' or 'admin' to test access controls
         let localTasksCache = [];
 
         // Initialize Supabase Connection (Ensure your configuration keys are linked)
@@ -35,27 +61,20 @@
 
         /**
          * Core Helper: Computes the numeric day of the week strictly following Philippine Time.
-         * Prevents localized machine settings or UTC offsets from misaligning operational days.
-         * * @param {string|null} dateString - Timestamp from database
+         * @param {string|null} dateString - Timestamp from database
          * @returns {number} 0 (Sunday) to 6 (Saturday)
          */
         function getPhilippineDayOfWeek(dateString = null) {
             const targetDate = dateString ? new Date(dateString) : new Date();
             
-            // Forces conversion using Asia/Manila timezone rules to fetch the exact local weekday string
             const phWeekdayStr = targetDate.toLocaleDateString('en-US', {
                 timeZone: 'Asia/Manila',
                 weekday: 'long'
             });
 
             const weekdayMap = {
-                'Sunday': 0, 
-                'Monday': 1, 
-                'Tuesday': 2, 
-                'Wednesday': 3, 
-                'Thursday': 4, 
-                'Friday': 5, 
-                'Saturday': 6
+                'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 
+                'Thursday': 4, 'Friday': 5, 'Saturday': 6
             };
 
             return weekdayMap[phWeekdayStr];
@@ -98,8 +117,6 @@
                 // Processing Loop: Apply strict Philippine Monday-to-Saturday schedule filter
                 localTasksCache = (data || []).filter(task => {
                     const phDay = getPhilippineDayOfWeek(task.created_at);
-                    
-                    // 1 = Monday, 6 = Saturday. Automatically drops 0 (Sunday) logs.
                     return phDay >= 1 && phDay <= 6;
                 });
 
@@ -108,6 +125,38 @@
             } catch(e) {
                 console.error("Pipeline Sync Error:", e);
                 generateToast("Failed loading task tracking entries.", "error");
+            }
+        }
+
+        /**
+         * Admin-Only Feature: Deletes a specific task record completely from the Supabase database.
+         * @param {number|string} taskId - The key ID row to delete
+         */
+        async function deleteDatabaseTask(taskId) {
+            // Guard clause checking role privilege levels 
+            if (sessionUser.role !== 'admin') {
+                generateToast("Unauthorized Action: Permissions restricted to Admin users.", "error");
+                return;
+            }
+
+            const confirmation = confirm(`Are you sure you want to permanently delete Task ID #${taskId}?`);
+            if (!confirmation) return;
+
+            try {
+                const { error } = await _supabase
+                    .from('tasks')
+                    .delete()
+                    .eq('id', taskId);
+
+                if (error) throw error;
+
+                generateToast(`Task #${taskId} successfully deleted.`, "success");
+                
+                // Re-fetch pipeline records to accurately update table rows and layout totals
+                await fetchPipelineData();
+            } catch (e) {
+                console.error("Error executing delete:", e);
+                generateToast("Failed to delete the selected task.", "error");
             }
         }
 
@@ -123,37 +172,54 @@
         }
 
         /**
-         * Renders the processed dataset into clean HTML line items.
+         * Renders the processed dataset into clean HTML line items with contextual actions.
          */
         function renderTableRows() {
             const tbody = document.getElementById('task-rows');
+            const actionsHeader = document.getElementById('actions-header');
             if (!tbody) return;
 
+            // Handle visibility of the Action Column Header based on admin role status
+            const isAdmin = (sessionUser.role === 'admin');
+            if (actionsHeader) {
+                actionsHeader.style.display = isAdmin ? 'table-cell' : 'none';
+            }
+
             if (localTasksCache.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: #888;">No tasks logged for this Mon-Sat period.</td></tr>`;
+                const totalColumns = isAdmin ? 6 : 5;
+                tbody.innerHTML = `<tr><td colspan="${totalColumns}" style="text-align:center; color: #888;">No tasks logged for this Mon-Sat period.</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = localTasksCache.map(task => `
-                <tr>
-                    <td>${task.id}</td>
-                    <td>${task.assignee || 'Unassigned'}</td>
-                    <td>${task.description || ''}</td>
-                    <td>${formatPhilippineDateTime(task.created_at)}</td>
-                    <td>
-                        <span class="badge ${task.completed ? 'status-done' : 'status-pending'}">
-                            ${task.completed ? 'Completed' : 'Pending'}
-                        </span>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = localTasksCache.map(task => {
+                // Conditionally insert an interactive deletion component row element if admin
+                const actionCell = isAdmin 
+                    ? `<td><button class="btn-delete" onclick="deleteDatabaseTask(${task.id})">Delete</button></td>` 
+                    : '';
+
+                return `
+                    <tr>
+                        <td>${task.id}</td>
+                        <td>${task.assignee || 'Unassigned'}</td>
+                        <td>${task.description || ''}</td>
+                        <td>${formatPhilippineDateTime(task.created_at)}</td>
+                        <td>
+                            <span class="badge ${task.completed ? 'status-done' : 'status-pending'}">
+                                ${task.completed ? 'Completed' : 'Pending'}
+                            </span>
+                        </td>
+                        ${actionCell}
+                    </tr>
+                `;
+            }).join('');
         }
 
         /**
-         * Optional UI Feedback Toast Helper
+         * UI Feedback Toast Helper
          */
         function generateToast(message, type = "info") {
             console.log(`[Toast Notification - ${type.toUpperCase()}]: ${message}`);
+            // If you use a toast library like Toastify or Swal, replace this log statement with your toast script trigger
         }
 
         // Auto-run routine on script loading
