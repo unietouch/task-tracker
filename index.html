@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpsDesk — Task Tracker</title>
-    <!-- Core External CDN Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -46,6 +44,7 @@
         }
         .hidden { display: none !important; }
 
+        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 3px; }
@@ -125,16 +124,13 @@
             cursor: pointer;
             transition: all 0.12s;
         }
-        .btn-delete:hover {
-            background: var(--red);
-            color: #fff;
-        }
+        .btn-delete:hover { background: var(--red); color: #fff; }
 
         /* ── LAYOUT ── */
         #view-dashboard { display: flex; min-height: 100vh; }
         .sidebar {
-            width: 240px;
-            min-width: 240px;
+            width: 260px;
+            min-width: 260px;
             background: var(--bg-surface);
             border-right: 1px solid var(--border);
             display: flex;
@@ -144,7 +140,7 @@
             z-index: 100;
         }
         .sidebar-brand {
-            padding: 20px 20px 16px;
+            padding: 20px;
             border-bottom: 1px solid var(--border);
             display: flex; align-items: center; gap: 10px;
         }
@@ -156,12 +152,14 @@
         .brand-name { font-size: 15px; font-weight: 600; }
         .brand-ver { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
         
-        .sidebar-nav { flex: 1; padding: 12px 10px; }
+        .sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
         .nav-item {
             display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--r);
             color: var(--text-muted); cursor: pointer; font-size: 13.5px; background: none; border: none; width: 100%; text-align: left;
+            margin-bottom: 4px;
         }
         .nav-item.active { color: var(--accent); background: var(--accent-dim); font-weight: 500; }
+        .nav-section-title { font-size: 11px; text-transform: uppercase; color: var(--text-dim); font-weight: 600; padding: 14px 10px 6px; letter-spacing: 0.5px; }
 
         .sidebar-footer { padding: 14px 10px; border-top: 1px solid var(--border); }
         .user-card-mini { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg-card); border-radius: var(--r); border: 1px solid var(--border); }
@@ -173,7 +171,7 @@
         .ucm-name { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .ucm-role { font-size: 10px; color: var(--text-muted); }
         
-        .main-content { margin-left: 240px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+        .main-content { margin-left: 260px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
         .topbar { padding: 16px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); position: sticky; top: 0; z-index: 50; }
         .topbar-title { font-size: 16px; font-weight: 600; }
         .topbar-sub { font-size: 12px; color: var(--text-muted); }
@@ -191,7 +189,7 @@
         .stat-value { font-size: 26px; font-weight: 600; font-family: var(--mono); margin-top: 4px; }
 
         /* ── PANELS & TABLES ── */
-        .task-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+        .task-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 24px; }
         .task-panel-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
         .tbl-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; text-align: left; }
@@ -204,12 +202,13 @@
         .pill-green { background: var(--green-dim); color: var(--green); }
         .pill-red { background: var(--red-dim); color: var(--red); }
         
-        .tbl-action { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 5px 12px; border-radius: 5px; font-size: 12px; cursor: pointer; transition: all 0.12s; }
+        .tbl-action { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 5px 12px; border-radius: 5px; font-size: 12px; cursor: pointer; transition: all 0.12s; margin-right: 4px; }
         .tbl-action:hover { border-color: var(--green); color: var(--green); background: var(--green-dim); }
         .date-col { font-family: var(--mono); font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 
         .create-form-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px 24px; margin-bottom: 20px; }
         .form-grid { display: grid; grid-template-columns: 1.2fr 1fr 2fr auto; gap: 12px; align-items: end; }
+        .user-form-grid { display: grid; grid-template-columns: 1fr 1.5fr 1fr 1fr auto; gap: 12px; align-items: end; }
 
         /* ── MODALS & TOASTS ── */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 500; }
@@ -228,7 +227,6 @@
 </head>
 <body>
 
-<!-- ═══════════════ LOGIN VIEW ═══════════════ -->
 <div id="view-login">
     <div class="login-box">
         <div class="login-logo">
@@ -254,7 +252,6 @@
     </div>
 </div>
 
-<!-- ═══════════════ DASHBOARD VIEW ═══════════════ -->
 <div id="view-dashboard" class="hidden">
     <aside class="sidebar">
         <div class="sidebar-brand">
@@ -267,7 +264,9 @@
             </div>
         </div>
         <nav class="sidebar-nav">
-            <button class="nav-item active">Operational Pipeline</button>
+            <span class="nav-section-title">Navigation</span>
+            <button id="nav-btn-pipeline" class="nav-item active" onclick="switchSubView('pipeline')">Operational Pipeline</button>
+            <button id="nav-btn-users" class="nav-item hidden" onclick="switchSubView('users')">User Management</button>
         </nav>
         <div class="sidebar-footer">
             <div class="user-card-mini">
@@ -287,12 +286,11 @@
         <div class="topbar">
             <div>
                 <div class="topbar-title" id="topbar-title">Pipeline Monitor</div>
-                <div class="topbar-sub">Real-time task control index (Mon - Sat PH Time)</div>
+                <div class="topbar-sub" id="topbar-sub">Real-time task control index (Mon - Sat PH Time)</div>
             </div>
         </div>
 
-        <div class="page-body">
-            <!-- Metrics Summary Cards -->
+        <div id="subview-pipeline" class="page-body">
             <div class="stats-grid">
                 <div class="stat-card stat-blue">
                     <div class="stat-label">Total Volume</div>
@@ -312,7 +310,6 @@
                 </div>
             </div>
 
-            <!-- Task Deployment Panel (Admins Only) -->
             <div id="admin-creation-panel" class="create-form-card hidden">
                 <h3>Deploy New Operation Task</h3>
                 <div class="form-grid">
@@ -337,7 +334,6 @@
                 </div>
             </div>
 
-            <!-- Main Data Table Panel -->
             <div class="task-panel">
                 <div class="task-panel-header">
                     <span style="font-weight:600;" id="table-view-title">Loading logs...</span>
@@ -362,10 +358,58 @@
                 </div>
             </div>
         </div>
+
+        <div id="subview-users" class="page-body hidden">
+            <div class="create-form-card">
+                <h3>Add / Update Operational User Account</h3>
+                <div class="user-form-grid">
+                    <div class="fgroup" style="margin:0;">
+                        <label>Username (Login ID)</label>
+                        <input type="text" id="user-username" class="fcontrol" placeholder="e.g. user1">
+                    </div>
+                    <div class="fgroup" style="margin:0;">
+                        <label>Display Name / Profile Title</label>
+                        <input type="text" id="user-display-name" class="fcontrol" placeholder="e.g. Outbound Logistics Analyst">
+                    </div>
+                    <div class="fgroup" style="margin:0;">
+                        <label>System Access Password</label>
+                        <input type="text" id="user-password" class="fcontrol" placeholder="Password token">
+                    </div>
+                    <div class="fgroup" style="margin:0;">
+                        <label>Security Role</label>
+                        <select id="user-role" class="fcontrol">
+                            <option value="staff">Staff (Standard)</option>
+                            <option value="admin">Admin (Full Control)</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary" style="margin:0; width:auto;" onclick="saveUserRecord()">Save User</button>
+                </div>
+            </div>
+
+            <div class="task-panel">
+                <div class="task-panel-header">
+                    <span style="font-weight:600;">System Configuration Profiles Matrix</span>
+                </div>
+                <div class="tbl-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Username ID</th>
+                                <th>Display Profile Name</th>
+                                <th>Password</th>
+                                <th>Clearance Role</th>
+                                <th style="width:120px;">Control</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-rows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
-<!-- Completion Context Modal Popup -->
 <div id="modal-closure" class="modal-backdrop hidden">
     <div class="modal">
         <h3>Finalize Task Resolution</h3>
@@ -383,7 +427,6 @@
 
 <div class="toast-container" id="toast-wrapper"></div>
 
-<!-- ═══════════════ APPLICATION LOGIC ═══════════════ -->
 <script>
     const SUPABASE_URL = "https://vwuhpzpagmahzaqyczuw.supabase.co";
     const SUPABASE_KEY = "sb_publishable_GMw--3rEN77JEs4V1_12GA_49xoRpyG";
@@ -391,16 +434,8 @@
 
     let sessionUser = null;
     let localTasksCache = [];
+    let dbUsersMap = {}; // Dynamically filled from 'app_users'
     let selectedTaskIdTarget = null;
-
-    const aliasLookup = {
-        'admin': 'System Administrator',
-        'user1': 'Outbound Logistics Analyst',
-        'user2': 'Inbound Logistics Analyst',
-        'user3': 'Inventory Control Specialist',
-        'user4': 'Reverse Logistics Coordinator',
-        'user5': 'SAP Systems Specialist'
-    };
 
     function generateToast(text, statusType = 'success') {
         const wrapper = document.getElementById('toast-wrapper');
@@ -412,21 +447,15 @@
         setTimeout(() => box.remove(), 3500);
     }
 
-    // Forces formatting to show dates locked to Philippine Standard Time
     function formatTimestampValue(rawString) {
         if (!rawString) return '<span style="color:var(--text-dim); font-style:italic;">Open</span>';
         return new Date(rawString).toLocaleString('en-US', {
             timeZone: 'Asia/Manila',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hour12: false
         }).replace(',', '');
     }
 
-    // Helper: Finds the numeric day of the week specifically matching Asia/Manila rules
     function getPhilippineDayOfWeek(dateString = null) {
         const targetDate = dateString ? new Date(dateString) : new Date();
         const phWeekdayStr = targetDate.toLocaleDateString('en-US', {
@@ -440,6 +469,42 @@
         return weekdayMap[phWeekdayStr];
     }
 
+    function switchSubView(view) {
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        if (view === 'pipeline') {
+            document.getElementById('nav-btn-pipeline').classList.add('active');
+            document.getElementById('subview-pipeline').classList.remove('hidden');
+            document.getElementById('subview-users').classList.add('hidden');
+            document.getElementById('topbar-title').innerText = "Pipeline Monitor";
+            document.getElementById('topbar-sub').innerText = "Real-time task control index (Mon - Sat PH Time)";
+            fetchPipelineData();
+        } else if (view === 'users') {
+            document.getElementById('nav-btn-users').classList.add('active');
+            document.getElementById('subview-pipeline').classList.add('hidden');
+            document.getElementById('subview-users').classList.remove('hidden');
+            document.getElementById('topbar-title').innerText = "User Management Dashboard";
+            document.getElementById('topbar-sub').innerText = "Configure and manage active database profiles, credentials, and labels";
+            renderUsersManagementTable();
+        }
+    }
+
+    // Dynamic User Directory Sync Strategy
+    async function syncSystemUsersDirectory() {
+        try {
+            const { data: records, error } = await _supabase.from('app_users').select('*');
+            if (error) throw error;
+            
+            dbUsersMap = {};
+            records.forEach(user => {
+                dbUsersMap[user.username] = user.display_name || user.username;
+            });
+            
+            populateDropdownOptions(records);
+        } catch (e) {
+            console.error("Directory Sync Failed:", e);
+        }
+    }
+
     async function handleLogin() {
         const userVal = document.getElementById('login-username').value.trim();
         const passVal = document.getElementById('login-password').value;
@@ -450,6 +515,7 @@
         }
 
         try {
+            // Read directly from user lookup configuration table
             const { data: records, error } = await _supabase
                 .from('app_users')
                 .select('*')
@@ -460,14 +526,15 @@
 
             if(records && records.length > 0) {
                 sessionUser = records[0];
-                generateToast(`Authorized as ${aliasLookup[sessionUser.username] || sessionUser.username}`);
+                await syncSystemUsersDirectory();
+                generateToast(`Authorized successfully as ${dbUsersMap[sessionUser.username] || sessionUser.username}`);
                 initializeDashboardLayout();
             } else {
                 generateToast("Invalid account combinations.", "error");
             }
         } catch(e) {
             console.error(e);
-            generateToast("Network query connection failed.", "error");
+            generateToast("Database network connectivity failure.", "error");
         }
     }
 
@@ -481,33 +548,34 @@
         document.getElementById('view-login').classList.add('hidden');
         document.getElementById('view-dashboard').classList.remove('hidden');
 
-        document.getElementById('sidebar-name').innerText = aliasLookup[sessionUser.username] || sessionUser.username;
+        document.getElementById('sidebar-name').innerText = dbUsersMap[sessionUser.username] || sessionUser.username;
         document.getElementById('sidebar-role').innerText = sessionUser.role.toUpperCase();
         document.getElementById('sidebar-avatar').innerText = sessionUser.username.substring(0,2);
 
         if(sessionUser.role === 'admin') {
             document.getElementById('admin-creation-panel').classList.remove('hidden');
+            document.getElementById('nav-btn-users').classList.remove('hidden');
             document.getElementById('table-view-title').innerText = "Global Operations Master Control Index";
             document.getElementById('th-actions').innerText = "Actions / Control";
-            populateDropdownOptions();
         } else {
             document.getElementById('admin-creation-panel').classList.add('hidden');
+            document.getElementById('nav-btn-users').classList.add('hidden');
             document.getElementById('table-view-title').innerText = "Your Pending Action Assignments";
             document.getElementById('th-actions').innerText = "Actions";
         }
 
-        fetchPipelineData();
+        switchSubView('pipeline');
     }
 
-    function populateDropdownOptions() {
+    function populateDropdownOptions(allUsers) {
         const select = document.getElementById('task-assignee');
         if(!select) return;
         select.innerHTML = '';
-        Object.keys(aliasLookup).forEach(key => {
-            if(key !== 'admin') {
+        allUsers.forEach(user => {
+            if(user.role !== 'admin') {
                 const opt = document.createElement('option');
-                opt.value = key;
-                opt.innerText = aliasLookup[key];
+                opt.value = user.username;
+                opt.innerText = user.display_name || user.username;
                 select.appendChild(opt);
             }
         });
@@ -515,6 +583,7 @@
 
     async function fetchPipelineData() {
         try {
+            await syncSystemUsersDirectory(); // Keep names strictly fresh
             let query = _supabase.from('tasks').select('*');
 
             if (sessionUser.role !== 'admin') {
@@ -526,10 +595,9 @@
             const { data, error } = await query;
             if (error) throw error;
 
-            // Strict Filter Strategy: Keep tasks created on Monday (1) through Saturday (6) in Manila
             localTasksCache = (data || []).filter(task => {
                 const phDay = getPhilippineDayOfWeek(task.created_at);
-                return phDay >= 1 && phDay <= 6;
+                return phDay >= 1 && phDay <= 6; // Mon-Sat filter
             });
 
             calculateMetricsSummary();
@@ -574,7 +642,6 @@
                 actionMarkup = `<span class="pill pill-green" style="margin-right:4px;">Verified</span> `;
             }
 
-            // Append specific control elements if account is configured with Admin clearance
             if(sessionUser.role === 'admin') {
                 actionMarkup += `<button class="btn-delete" onclick="executeTaskDeletion(${task.id})">Delete</button>`;
             }
@@ -585,7 +652,7 @@
 
             tr.innerHTML = `
                 <td class="date-col">#${task.id}</td>
-                <td><strong>${aliasLookup[task.assignee] || task.assignee}</strong></td>
+                <td><strong>${dbUsersMap[task.assignee] || task.assignee}</strong></td>
                 <td><span class="pill pill-blue">${task.timestamp || 'One-Time'}</span></td>
                 <td>${task.description}</td>
                 <td class="date-col">${formatTimestampValue(task.created_at)}</td>
@@ -607,8 +674,8 @@
         const freq = document.getElementById('task-frequency').value;
         const desc = document.getElementById('task-desc').value.trim();
 
-        if(!desc) {
-            generateToast("Directives requirements field empty.", "error");
+        if(!assignee || !desc) {
+            generateToast("Directives target tracking properties missing.", "error");
             return;
         }
 
@@ -632,19 +699,11 @@
     }
 
     async function executeTaskDeletion(taskId) {
-        if(sessionUser.role !== 'admin') {
-            generateToast("Access Denied: Admin authorization required.", "error");
-            return;
-        }
-
+        if(sessionUser.role !== 'admin') return;
         if(!confirm(`Permanently wipe Task #${taskId} from systems record?`)) return;
 
         try {
-            const { error } = await _supabase
-                .from('tasks')
-                .delete()
-                .eq('id', taskId);
-
+            const { error } = await _supabase.from('tasks').delete().eq('id', taskId);
             if (error) throw error;
 
             generateToast(`Task #${taskId} successfully dropped.`, "success");
@@ -655,6 +714,118 @@
         }
     }
 
+    /* ── USER MANAGEMENT FUNCTIONS (ADMIN ONLY) ── */
+    async function renderUsersManagementTable() {
+        const tbody = document.getElementById('users-table-rows');
+        if(!tbody) return;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Syncing secure indexes...</td></tr>`;
+
+        try {
+            const { data: users, error } = await _supabase.from('app_users').select('*').order('username', { ascending: true });
+            if (error) throw error;
+
+            tbody.innerHTML = '';
+            users.forEach(user => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="date-col"><strong>${user.username}</strong></td>
+                    <td><input type="text" class="fcontrol" style="padding: 5px 10px;" id="edit-display-${user.username}" value="${user.display_name || ''}"></td>
+                    <td><input type="text" class="fcontrol" style="padding: 5px 10px;" id="edit-pass-${user.username}" value="${user.password}"></td>
+                    <td>
+                        <select class="fcontrol" style="padding: 4px 8px;" id="edit-role-${user.username}">
+                            <option value="staff" ${user.role === 'staff' ? 'selected' : ''}>Staff</option>
+                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button class="tbl-action" style="border-color:var(--accent); color:var(--accent);" onclick="updateInlineUser('${user.username}')">Update</button>
+                        ${user.username !== 'admin' ? `<button class="btn-delete" onclick="deleteUserRecord('${user.username}')">Delete</button>` : ''}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            console.error(e);
+            generateToast("Could not download system configuration map.", "error");
+        }
+    }
+
+    async function saveUserRecord() {
+        const u = document.getElementById('user-username').value.trim();
+        const d = document.getElementById('user-display-name').value.trim();
+        const p = document.getElementById('user-password').value.trim();
+        const r = document.getElementById('user-role').value;
+
+        if(!u || !d || !p) {
+            generateToast("Please fill all user property inputs.", "error");
+            return;
+        }
+
+        try {
+            const { error } = await _supabase.from('app_users').upsert([{
+                username: u, display_name: d, password: p, role: r
+            }]);
+            if (error) throw error;
+
+            generateToast(`Configuration profile saved for '${u}'`);
+            document.getElementById('user-username').value = '';
+            document.getElementById('user-display-name').value = '';
+            document.getElementById('user-password').value = '';
+            
+            await syncSystemUsersDirectory();
+            renderUsersManagementTable();
+        } catch(e) {
+            console.error(e);
+            generateToast("Error processing data configuration insertion.", "error");
+        }
+    }
+
+    async function updateInlineUser(username) {
+        const newDisplay = document.getElementById(`edit-display-${username}`).value.trim();
+        const newPass = document.getElementById(`edit-pass-${username}`).value.trim();
+        const newRole = document.getElementById(`edit-role-${username}`).value;
+
+        if(!newDisplay || !newPass) {
+            generateToast("Fields cannot be saved empty.", "error");
+            return;
+        }
+
+        try {
+            const { error } = await _supabase.from('app_users').update({
+                display_name: newDisplay,
+                password: newPass,
+                role: newRole
+            }).eq('username', username);
+
+            if (error) throw error;
+
+            generateToast(`User profile '${username}' updated successfully.`);
+            await syncSystemUsersDirectory();
+            renderUsersManagementTable();
+        } catch (e) {
+            console.error(e);
+            generateToast("Update processing failed.", "error");
+        }
+    }
+
+    async function deleteUserRecord(username) {
+        if(username === 'admin') return;
+        if(!confirm(`Completely drop profile credentials for target '${username}'?`)) return;
+
+        try {
+            const { error } = await _supabase.from('app_users').delete().eq('username', username);
+            if (error) throw error;
+
+            generateToast(`User profile '${username}' permanently removed.`);
+            await syncSystemUsersDirectory();
+            renderUsersManagementTable();
+        } catch (e) {
+            console.error(e);
+            generateToast("Failed to execute data line destruction.", "error");
+        }
+    }
+
+    /* ── TASK CLOSURE SYSTEM FUNCTIONS ── */
     function openClosureModal(id) {
         selectedTaskIdTarget = id;
         document.getElementById('closure-comment').value = '';
