@@ -304,10 +304,6 @@
         </div>
         <nav class="sidebar-nav">
             <span class="nav-section-title">Navigation</span>
-            <button id="nav-btn-analytics" class="nav-item active" onclick="switchSubView('analytics')">
-                <svg viewBox="0 0 16 16" fill="currentColor" style="width:15px;flex-shrink:0;"><path d="M2 12h2V7H2v5zm3 0h2V4H5v8zm3 0h2V9H8v3zm3 0h2V2h-2v10z"/></svg>
-                Dashboard Overview
-            </button>
             <button id="nav-btn-pipeline" class="nav-item" onclick="switchSubView('pipeline')">
                 <svg viewBox="0 0 16 16" fill="currentColor" style="width:15px;flex-shrink:0;"><path d="M1 2h14v2H1V2zm0 4h14v2H1V6zm0 4h10v2H1v-2z"/></svg>
                 All Tasks Pipeline
@@ -341,46 +337,11 @@
     <div class="main-content">
         <div class="topbar">
             <div>
-                <div class="topbar-title" id="topbar-title">Dashboard Overview</div>
-                <div class="topbar-sub" id="topbar-sub">Operations overview & analytics (Mon – Sat PH Time)</div>
+                <div class="topbar-title" id="topbar-title">Pipeline Monitor</div>
+                <div class="topbar-sub" id="topbar-sub">Real-time task control index (Mon – Sat PH Time)</div>
             </div>
         </div>
 
-        <!-- ── ANALYTICS ── -->
-        <div id="subview-analytics" class="page-body">
-            <div class="stats-grid" style="grid-template-columns: repeat(5, 1fr);">
-                <div class="stat-card stat-blue"><div class="stat-label">Total Tasks (To Date)</div><div class="stat-value" id="an-total">0</div></div>
-                <div class="stat-card stat-green"><div class="stat-label">Completed (To Date)</div><div class="stat-value" id="an-completed">0</div></div>
-                <div class="stat-card stat-red"><div class="stat-label">Pending Today</div><div class="stat-value" id="an-pending">0</div></div>
-                <div class="stat-card stat-amber"><div class="stat-label">Missed Tasks</div><div class="stat-value" id="an-missed">0</div></div>
-                <div class="stat-card" style="border-left-color:var(--purple);"><div class="stat-label" style="color:var(--text-muted);">Completion Rate</div><div class="stat-value" id="an-rate" style="color:var(--purple);">0%</div></div>
-            </div>
-            <style>.stat-card:last-child::before { background: var(--purple); }</style>
-            <div class="radar-panel">
-                <div class="chart-header" style="display:flex; align-items:center; justify-content:space-between;">
-                    <div>
-                        <h4>Upcoming Task Radar — Next Scheduled Tasks</h4>
-                        <p>Up to 10 tasks sorted by closest due date (future tasks only, excludes today & past)</p>
-                    </div>
-                    <span class="info-badge" id="radar-count-badge">0 tasks</span>
-                </div>
-                <div class="radar-grid" id="radar-deck-anchor"></div>
-            </div>
-            <div class="analytics-split-row">
-                <div class="chart-panel-card">
-                    <div class="chart-header"><h4>Task Activity — By Assignee</h4><p>Completed vs. Pending breakdown per team member</p></div>
-                    <div class="bar-chart-container" id="bar-chart-anchor"></div>
-                </div>
-                <div class="chart-panel-card">
-                    <div class="chart-header"><h4>Frequency Distribution</h4><p>Task types across the active operational pipeline</p></div>
-                    <div class="dist-list" id="frequency-dist-anchor"></div>
-                </div>
-            </div>
-            <div class="progress-list-panel">
-                <div class="chart-header" style="margin-bottom:16px;"><h4>Per-User Performance Summary</h4><p>Completion rate based on tasks dated up to and including today · ⚠ = missed count</p></div>
-                <div id="progress-rows-anchor"></div>
-            </div>
-        </div>
 
         <!-- ── PIPELINE ── -->
         <div id="subview-pipeline" class="page-body hidden">
@@ -692,13 +653,12 @@
     /* ── NAV ── */
     function switchSubView(view) {
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        ['analytics','pipeline','calendar','users'].forEach(v => {
+        ['pipeline','calendar','users'].forEach(v => {
             const el = document.getElementById(`subview-${v}`);
             if (el) el.classList.add('hidden');
         });
 
         const titles = {
-            analytics: ['Dashboard Overview', 'Operations overview & analytics (Mon – Sat PH Time)'],
             pipeline:  ['Pipeline Monitor', 'Real-time task control index (Mon – Sat PH Time)'],
             calendar:  ['Calendar View', 'Monthly task schedule overview'],
             users:     ['User Management', 'Configure active database profiles and credentials']
@@ -714,7 +674,7 @@
         const subview = document.getElementById(`subview-${view}`);
         if (subview) subview.classList.remove('hidden');
 
-        if (view === 'analytics' || view === 'pipeline') fetchPipelineData();
+        if (view === 'pipeline') fetchPipelineData();
         else if (view === 'calendar') { fetchPipelineData().then(() => renderCalendar()); }
         else if (view === 'users') renderUsersManagementTable();
     }
@@ -786,7 +746,7 @@
         }
 
         buildCalFilters();
-        switchSubView('analytics');
+        switchSubView('pipeline');
     }
 
     /* ── DROPDOWNS ── */
@@ -844,11 +804,7 @@
                 return phDay >= 1 && phDay <= 6;
             });
 
-            calculateMetricsSummary();
-            renderAnalyticsCharts();
-            renderRadarScheduleEngine();
             applyPipelineFilters();
-
             if (!skipAutoGenerate) {
                 await runAutoGenerationEngine();
             }
@@ -1018,189 +974,6 @@
         document.getElementById('staff-filter-timeframe').value = 'DAY';
         document.getElementById('staff-filter-status').value = 'ALL';
         applyPipelineFilters();
-    }
-
-    /* ── METRICS ── */
-    function calculateMetricsSummary() {
-        // Exclude templates; only count tasks up to and including today
-        const todayPH = getPhDate();
-        todayPH.setHours(23,59,59,999);
-
-        const instances = localTasksCache.filter(t => {
-            if (t.is_template === true) return false;
-            // Only include tasks whose date is on or before today
-            const taskDate = getPhDate(t.created_at);
-            return taskDate <= todayPH;
-        });
-
-        const total  = instances.length;
-        const closed = instances.filter(t => t.completed).length;
-        const missed = instances.filter(t => getTaskStatus(t) === 'MISSED').length;
-        const rate   = total > 0 ? Math.round((closed/total)*100) : 0;
-
-        // Pending TODAY only: task date is today AND not completed AND not missed
-        const nowPH = getPhDate();
-        const todayStr = nowPH.toDateString();
-        const pendingToday = instances.filter(t => {
-            if (t.completed) return false;
-            const taskDate = getPhDate(t.created_at);
-            return taskDate.toDateString() === todayStr;
-        }).length;
-
-        document.getElementById('an-total').innerText     = total;
-        document.getElementById('an-completed').innerText = closed;
-        document.getElementById('an-pending').innerText   = pendingToday;
-        document.getElementById('an-missed').innerText    = missed;
-        document.getElementById('an-rate').innerText      = `${rate}%`;
-    }
-
-    /* ── RADAR ── */
-    function renderRadarScheduleEngine() {
-        const anchor = document.getElementById('radar-deck-anchor');
-        const countBadge = document.getElementById('radar-count-badge');
-        if (!anchor) return;
-        anchor.innerHTML = '';
-
-        const nowPH = getPhDate();
-        nowPH.setHours(0,0,0,0);
-
-        // Today's date string for comparison
-        const todayStr = nowPH.toDateString();
-
-        const instances = localTasksCache.filter(t => t.is_template !== true);
-
-        // Only include future tasks (strictly after today, not today itself)
-        const upcoming = instances
-            .filter(task => {
-                if (task.completed) return false;
-                const taskDate = getPhDate(task.created_at);
-                taskDate.setHours(0,0,0,0);
-                // Must be strictly in the future (after today)
-                return taskDate > nowPH;
-            })
-            .sort((a, b) => {
-                // Sort by closest coming date first
-                return getPhDate(a.created_at) - getPhDate(b.created_at);
-            })
-            .slice(0, 10); // Max 10 tasks
-
-        if (countBadge) countBadge.textContent = `${upcoming.length} task${upcoming.length !== 1 ? 's' : ''}`;
-
-        if (upcoming.length === 0) {
-            anchor.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">No upcoming future tasks found.</div>`;
-            return;
-        }
-
-        upcoming.forEach(task => {
-            const taskDate = getPhDate(task.created_at);
-            taskDate.setHours(0,0,0,0);
-            const workingDaysAway = countWorkingDaysAhead(nowPH, taskDate);
-
-            // Calendar days away for display
-            const msInDay = 86400000;
-            const calDaysAway = Math.round((taskDate - nowPH) / msInDay);
-
-            // Color urgency
-            let urgencyColor = 'var(--purple)';
-            let urgencyPillClass = 'pill-purple';
-            if (calDaysAway <= 1) { urgencyColor = 'var(--red)'; urgencyPillClass = 'pill-red'; }
-            else if (calDaysAway <= 3) { urgencyColor = 'var(--amber)'; urgencyPillClass = 'pill-amber'; }
-            else if (calDaysAway <= 7) { urgencyColor = 'var(--accent)'; urgencyPillClass = 'pill-blue'; }
-
-            const dueDateLabel = taskDate.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-
-            const card = document.createElement('div');
-            card.className = 'radar-card';
-            card.style.borderLeft = `3px solid ${urgencyColor}`;
-            card.innerHTML = `
-                <div class="radar-card-title">${escHtml(task.description)}</div>
-                <div style="font-size:12px; color:var(--text-muted);">Assignee: <strong>${escHtml(dbUsersMap[task.assignee] || task.assignee)}</strong></div>
-                <div class="radar-meta">
-                    <span class="pill ${urgencyPillClass}">${escHtml(task.timestamp || 'One-Time')} · ${dueDateLabel}</span>
-                    <span style="color:${urgencyColor}; font-weight:600; font-size:11px;">${calDaysAway === 1 ? 'Tomorrow' : `in ${calDaysAway} days`}</span>
-                </div>`;
-            anchor.appendChild(card);
-        });
-    }
-
-    /* ── CHARTS ── */
-    function renderAnalyticsCharts() {
-        const barAnchor  = document.getElementById('bar-chart-anchor');
-        const freqAnchor = document.getElementById('frequency-dist-anchor');
-        const progAnchor = document.getElementById('progress-rows-anchor');
-        if (!barAnchor || !freqAnchor || !progAnchor) return;
-        barAnchor.innerHTML = freqAnchor.innerHTML = progAnchor.innerHTML = '';
-
-        const staffList = dbUserProfilesList.filter(u => u.role !== 'admin');
-        if (staffList.length === 0) {
-            barAnchor.innerHTML = `<div class="empty-state" style="width:100%;">No active staff users configured.</div>`;
-            progAnchor.innerHTML = `<div class="empty-state">No operational staff profiles.</div>`;
-        }
-
-        // Performance is based ONLY on tasks up to and including today (current date scope)
-        const todayPH = getPhDate();
-        todayPH.setHours(23,59,59,999);
-
-        const instances = localTasksCache.filter(t => {
-            if (t.is_template === true) return false;
-            const taskDate = getPhDate(t.created_at);
-            return taskDate <= todayPH; // Only tasks on or before today
-        });
-
-        const maxVol = Math.max(...staffList.map(u => instances.filter(t => t.assignee === u.username).length), 1);
-
-        staffList.forEach(user => {
-            const ut      = instances.filter(t => t.assignee === user.username);
-            const total   = ut.length;
-            const closed  = ut.filter(t => t.completed).length;
-            const missed  = ut.filter(t => getTaskStatus(t) === 'MISSED').length;
-            const pending = ut.filter(t => !t.completed && getTaskStatus(t) !== 'MISSED').length;
-            const pct     = total > 0 ? Math.round((closed/total)*100) : 0;
-            const name    = user.display_name || user.username;
-
-            const barWrap = document.createElement('div');
-            barWrap.className = 'bar-wrapper';
-            barWrap.innerHTML = `
-                <div class="chart-tooltip-bubble">${escHtml(name)}: ${closed} Done / ${pending} Pending / ${missed} Missed</div>
-                <div class="bar-pillar-group">
-                    <div class="bar-segment seg-pending"   style="height:${((pending+missed)/maxVol)*100}%"></div>
-                    <div class="bar-segment seg-completed" style="height:${(closed/maxVol)*100}%"></div>
-                </div>
-                <div class="bar-label-caption" title="${escHtml(name)}">${escHtml(name)}</div>`;
-            barAnchor.appendChild(barWrap);
-
-            // Progress row — color changes based on rate
-            let rateColor = 'linear-gradient(90deg, var(--accent), var(--green))';
-            if (pct < 50) rateColor = 'linear-gradient(90deg, var(--red), var(--amber))';
-            else if (pct < 80) rateColor = 'linear-gradient(90deg, var(--amber), var(--accent))';
-
-            const row = document.createElement('div');
-            row.className = 'progress-row-item';
-            row.innerHTML = `
-                <div class="prog-user-meta" title="${escHtml(name)}">${escHtml(name)}</div>
-                <div class="prog-track-bar-outer"><div class="prog-track-bar-inner" style="width:${pct}%; background:${rateColor};"></div></div>
-                <div class="prog-stats-metric">
-                    <span class="prog-percentage" style="color:${pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)'};">${pct}%</span>
-                    <span class="prog-fraction">${closed}/${total}</span>
-                    ${missed > 0 ? `<span style="color:var(--amber); font-size:11px; font-family:var(--mono);">⚠ ${missed}</span>` : ''}
-                </div>`;
-            progAnchor.appendChild(row);
-        });
-
-        const freqMap = { 'One-Time':0,'Daily':0,'Weekly':0,'Monthly':0 };
-        instances.forEach(t => { const k = t.timestamp || 'One-Time'; if (freqMap.hasOwnProperty(k)) freqMap[k]++; });
-        const dotColors = { 'Daily':'var(--green)','Weekly':'var(--amber)','Monthly':'var(--red)','One-Time':'var(--accent)' };
-        Object.keys(freqMap).forEach(key => {
-            const item = document.createElement('div');
-            item.className = 'dist-item';
-            item.innerHTML = `
-                <div class="dist-label-group">
-                    <div class="dist-dot-indicator" style="background:${dotColors[key]}"></div>
-                    <span class="dist-text-name">${key} Directives</span>
-                </div>
-                <div class="dist-badge-value">${freqMap[key]} Tasks</div>`;
-            freqAnchor.appendChild(item);
-        });
     }
 
     /* ── TABLE ── */
