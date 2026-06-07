@@ -1224,4 +1224,295 @@
 
     function calNav(dir) {
         calMonth += dir;
-        if (calM
+        if (calMonth > 11) { calMonth = 0; calYear++; }
+        if (calMonth < 0)  { calMonth = 11; calYear--; }
+        renderCalendar();
+    }
+    function calGoToday() {
+        const now = new Date();
+        calYear  = now.getFullYear();
+        calMonth = now.getMonth();
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        const label = document.getElementById('cal-month-label');
+        if (label) {
+            label.textContent = new Date(calYear, calMonth, 1)
+                .toLocaleDateString('en-US', { month:'long', year:'numeric' });
+        }
+
+        const statusFilter = (document.getElementById('cal-filter-status') || {}).value || 'ALL';
+        const userFilter   = sessionUser.role === 'admin'
+            ? ((document.getElementById('cal-filter-user') || {}).value || 'ALL')
+            : sessionUser.username;
+
+        // Display individual operational instances (exclude blueprints from layout)
+        const monthTasks = localTasksCache.filter(task => {
+            if (task.is_template === true) return false;
+            const d = getPhDate(task.created_at);
+            if (d.getFullYear() !== calYear || d.getMonth() !== calMonth) return false;
+            if (userFilter !== 'ALL' && task.assignee !== userFilter) return false;
+            const status = getTaskStatus(task);
+            if (statusFilter !== 'ALL' && status !== statusFilter) return false;
+            return true;
+        });
+
+        const tasksByDay = {};
+        monthTasks.forEach(task => {
+            const d   = getPhDate(task.created_at);
+            const day = d.getDate();
+            if (!tasksByDay[day]) tasksByDay[day] = [];
+            tasksByDay[day].push(task);
+        });
+
+        const anchor = document.getElementById('cal-cells-anchor');
+        if (!anchor) return;
+        anchor.innerHTML = '';
+
+        const firstDay   = new Date(calYear, calMonth, 1).getDay(); 
+        const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+        const todayPH     = getPhDate();
+        const isCurrentMonth = todayPH.getFullYear() === calYear && todayPH.getMonth() === calMonth;
+
+        for (let i = 0; i < firstDay; i++) {
+            const empty = document.createElement('div');
+            empty.className = 'cal-cell empty';
+            anchor.appendChild(empty);
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dayOfWeek = new Date(calYear, calMonth, d).getDay(); 
+            const cell      = document.createElement('div');
+            const isToday   = isCurrentMonth && todayPH.getDate() === d;
+            const isSunday  = dayOfWeek === 0;
+
+            cell.className = `cal-cell${isToday ? ' today' : ''}${isSunday ? ' sunday' : ''}`;
+
+            const numDiv = document.createElement('div');
+            numDiv.className = 'cal-cell-num';
+            numDiv.textContent = d;
+            cell.appendChild(numDiv);
+
+            const tasks = tasksByDay[d] || [];
+            const MAX_SHOW = 3;
+            tasks.slice(0, MAX_SHOW).forEach(task => {
+                const status = getTaskStatus(task);
+                const chip   = document.createElement('div');
+                chip.className = `cal-task-chip chip-${status.toLowerCase()}`;
+                chip.title     = `${dbUsersMap[task.assignee] || task.assignee}: ${task.description}`;
+                chip.textContent = (sessionUser.role === 'admin')
+                    ? `${dbUsersMap[task.assignee] || task.assignee}: ${task.description}`
+                    : task.description;
+                cell.appendChild(chip);
+            });
+            if (tasks.length > MAX_SHOW) {
+                const more = document.createElement('div');
+                more.className   = 'cal-more';
+                more.textContent = `+${tasks.length - MAX_SHOW} more`;
+                cell.appendChild(more);
+            }
+
+            anchor.appendChild(cell);
+        }
+
+        const totalCells = firstDay + daysInMonth;
+        const remainder  = totalCells % 7;
+        if (remainder !== 0) {
+            for (let i = 0; i < (7 - remainder); i++) {
+                const empty = document.createElement('div');
+                empty.className = 'cal-cell empty';
+                anchor.appendChild(empty);
+            }
+        }
+    }
+
+    /* ── EXPORT ── */
+    function exportFilteredCSV() {
+        const timeFilter   = document.getElementById('filter-timeframe').value;
+        const userFilter   = document.getElementById('filter-user').value;
+        const statusFilter = document.getElementById('filter-status').value;
+        const filtered     = localTasksCache.filter(task => {
+            if (task.is_template === true) return false; // Blueprints shouldn't be exported as performance logs
+            if (userFilter !== 'ALL' && task.assignee !== userFilter) return false;
+            const status = getTaskStatus(task);
+            if (statusFilter !== 'ALL' && status !== statusFilter) return false;
+            if (timeFilter !== 'ALL' && task.created_at) {
+                const nowPH = getPhDate(); const tskPH = getPhDate(task.created_at);
+                if (timeFilter === 'DAY' && tskPH.toDateString() !== nowPH.toDateString()) return false;
+                if (timeFilter === 'WEEK') { const diff = (nowPH-tskPH)/86400000; if (diff>7||diff<0) return false; }
+                if (timeFilter === 'MONTH' && (tskPH.getMonth()!==nowPH.getMonth()||tskPH.getFullYear()!==nowPH.getFullYear())) return false;
+            }
+            return true;
+        });
+        if (filtered.length === 0) { generateToast("No records to export.", "error"); return; }
+        const headers = ['ID','Assignee','Display Name','Frequency','Deadline Target','Task Description','Date Assigned (PH)','Date Completed (PH)','Status','Remarks'];
+        const rows    = filtered.map(t => [
+            t.id, csvCell(t.assignee), csvCell(dbUsersMap[t.assignee]||t.assignee),
+            csvCell(t.timestamp||'One-Time'), csvCell(t.deadline_target||''), csvCell(t.description),
+            csvCell(formatTimestampValuePlain(t.created_at)), csvCell(formatTimestampValuePlain(t.completed_at)),
+            getTaskStatus(t), csvCell(t.remarks||'')
+        ]);
+        const csv  = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `OpsDesk_Export_${new Date().toLocaleDateString('en-US',{timeZone:'Asia/Manila'}).replace(/\//g,'-')}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        generateToast(`Exported ${filtered.length} records.`);
+    }
+    function csvCell(val) { return `"${String(val||'').replace(/"/g,'""')}"`; }
+
+    /* ── CREATE TASK (SAVE RECURRING BLUEPRINTS) ── */
+    async function createNewTask() {
+        const assignee = document.getElementById('task-assignee').value;
+        const freq     = document.getElementById('task-frequency').value;
+        const desc     = document.getElementById('task-desc').value.trim();
+        let deadlineVal = null;
+        if (freq === 'Weekly') deadlineVal = document.getElementById('task-deadline-weekly').value;
+        else if (freq === 'Monthly') {
+            deadlineVal = document.getElementById('task-deadline-monthly').value;
+            if (!deadlineVal) { generateToast("Please select a monthly occurrence.", "error"); return; }
+        }
+        if (!assignee || !desc) { generateToast("Assignee and description are required.", "error"); return; }
+        
+        // Mark as template if it repeats over a set frequency
+        const isTemplate = freq !== 'One-Time';
+
+        try {
+            const { error } = await _supabase.from('tasks').insert([{
+                assignee, description: desc, completed: false, timestamp: freq, deadline_target: deadlineVal, is_template: isTemplate
+            }]);
+            if (error) throw error;
+            generateToast("Task deployed successfully.");
+            document.getElementById('task-desc').value = '';
+            
+            // Re-fetch to evaluate and immediately populate scheduled dates
+            await fetchPipelineData();
+        } catch(e) { console.error(e); generateToast("Error writing to database.", "error"); }
+    }
+
+    /* ── DELETE TASK ── */
+    async function executeTaskDeletion(taskId) {
+        if (sessionUser.role !== 'admin') return;
+        if (!confirm(`Permanently delete Task #${taskId}?`)) return;
+        try {
+            const { error } = await _supabase.from('tasks').delete().eq('id', parseInt(taskId));
+            if (error) throw error;
+            generateToast(`Task #${taskId} deleted.`);
+            fetchPipelineData();
+        } catch(e) { console.error(e); generateToast("Failed to delete task.", "error"); }
+    }
+
+    /* ── USERS TABLE ── */
+    async function renderUsersManagementTable() {
+        const tbody = document.getElementById('users-table-rows');
+        if (!tbody) return;
+        tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Syncing secure indexes...</td></tr>`;
+        try {
+            const { data: users, error } = await _supabase.from('app_users').select('*').order('username', { ascending: true });
+            if (error) throw error;
+            tbody.innerHTML = '';
+            users.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" class="fcontrol date-col" style="padding:5px 10px; font-weight:600;" id="edit-user-${u.id}" value="${escHtml(u.username||'')}"></td>
+                    <td><input type="text" class="fcontrol" style="padding:5px 10px;" id="edit-display-${u.id}" value="${escHtml(u.display_name||'')}"></td>
+                    <td><input type="text" class="fcontrol" style="padding:5px 10px;" id="edit-pass-${u.id}" value="${escHtml(u.password||'')}"></td>
+                    <td><select class="fcontrol" style="padding:4px 8px;" id="edit-role-${u.id}">
+                        <option value="staff" ${u.role==='staff'?'selected':''}>Staff</option>
+                        <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+                    </select></td>
+                    <td>
+                        <button class="tbl-action" style="border-color:var(--accent); color:var(--accent);" onclick="updateInlineUser(${u.id}, '${escHtml(u.username)}')">Update</button>
+                        ${u.username !== 'admin' ? `<button class="btn-delete" onclick="deleteUserRecord(${u.id}, '${escHtml(u.username)}')">Delete</button>` : ''}
+                    </td>`;
+                tbody.appendChild(tr);
+            });
+        } catch(e) { console.error(e); generateToast("Could not load user profiles.", "error"); }
+    }
+
+    async function saveUserRecord() {
+        const u = document.getElementById('user-username').value.trim();
+        const d = document.getElementById('user-display-name').value.trim();
+        const p = document.getElementById('user-password').value.trim();
+        const r = document.getElementById('user-role').value;
+        if (!u || !p) { generateToast("Username and Password are required.", "error"); return; }
+        try {
+            const { error } = await _supabase.from('app_users').insert([{ username:u, display_name:d||u, password:p, role:r }]);
+            if (error) throw error;
+            generateToast(`User '${u}' saved.`);
+            ['user-username','user-display-name','user-password'].forEach(id => document.getElementById(id).value = '');
+            await syncSystemUsersDirectory();
+            renderUsersManagementTable();
+        } catch(e) { console.error(e); generateToast("Error saving user.", "error"); }
+    }
+
+    async function updateInlineUser(userId, originalUsername) {
+        const nu = document.getElementById(`edit-user-${userId}`).value.trim();
+        const nd = document.getElementById(`edit-display-${userId}`).value.trim();
+        const np = document.getElementById(`edit-pass-${userId}`).value.trim();
+        const nr = document.getElementById(`edit-role-${userId}`).value;
+        if (!nu || !np) { generateToast("Username and Password cannot be empty.", "error"); return; }
+        try {
+            const { error: ue } = await _supabase.from('app_users').update({ username:nu, display_name:nd||nu, password:np, role:nr }).eq('id', parseInt(userId));
+            if (ue) throw ue;
+            if (originalUsername !== nu) {
+                const { error: te } = await _supabase.from('tasks').update({ assignee:nu }).eq('assignee', originalUsername);
+                if (te) throw te;
+            }
+            generateToast(`User profile updated.`);
+            if (sessionUser.id === userId) {
+                sessionUser.username = nu; sessionUser.role = nr;
+                document.getElementById('sidebar-name').innerText = nd || nu;
+                document.getElementById('sidebar-role').innerText = nr.toUpperCase();
+            }
+            await syncSystemUsersDirectory();
+            renderUsersManagementTable();
+        } catch(e) { console.error(e); generateToast("Update failed.", "error"); }
+    }
+
+    async function deleteUserRecord(userId, username) {
+        if (username === 'admin') return;
+        if (!confirm(`Delete user '${username}'?`)) return;
+        try {
+            const { error } = await _supabase.from('app_users').delete().eq('id', parseInt(userId));
+            if (error) throw error;
+            generateToast(`User '${username}' removed.`);
+            await syncSystemUsersDirectory();
+            renderUsersManagementTable();
+        } catch(e) { console.error(e); generateToast("Failed to delete user.", "error"); }
+    }
+
+    /* ── CLOSURE MODAL ── */
+    function openClosureModal(id) {
+        selectedTaskIdTarget = parseInt(id);
+        document.getElementById('closure-comment').value = '';
+        document.getElementById('modal-closure').classList.remove('hidden');
+        setTimeout(() => document.getElementById('closure-comment').focus(), 50);
+    }
+    function closeClosureModal() {
+        selectedTaskIdTarget = null;
+        document.getElementById('modal-closure').classList.add('hidden');
+    }
+    async function executeTaskClosure() {
+        if (!selectedTaskIdTarget) return;
+        const text = document.getElementById('closure-comment').value.trim() || "Operations confirmed completed.";
+        try {
+            const { error } = await _supabase.from('tasks').update({
+                completed: true, remarks: text, completed_at: new Date().toISOString()
+            }).eq('id', selectedTaskIdTarget);
+            if (error) throw error;
+            generateToast("Task closed successfully.");
+            closeClosureModal();
+            fetchPipelineData();
+        } catch(e) { console.error(e); generateToast("Failed to update task status.", "error"); }
+    }
+    document.getElementById('modal-closure').addEventListener('click', function(e) {
+        if (e.target === this) closeClosureModal();
+    });
+</script>
+</body>
+</html>
