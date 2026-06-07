@@ -436,6 +436,14 @@
                 </button>
             </div>
             <div id="staff-filter-panel" class="pipeline-filter-card hidden">
+                <div class="fgroup" style="max-width:200px;"><label>Timeframe</label>
+                    <select id="staff-filter-timeframe" class="fcontrol" onchange="applyPipelineFilters()">
+                        <option value="DAY" selected>Today</option>
+                        <option value="WEEK">This Week</option>
+                        <option value="MONTH">This Month</option>
+                        <option value="ALL">All Time</option>
+                    </select>
+                </div>
                 <div class="fgroup" style="max-width:200px;"><label>Status</label>
                     <select id="staff-filter-status" class="fcontrol" onchange="applyPipelineFilters()">
                         <option value="ALL">All Statuses</option><option value="PENDING" selected>Pending</option>
@@ -966,7 +974,9 @@
     function applyPipelineFilters() {
         if (!localTasksCache) return;
         const isAdmin = sessionUser && sessionUser.role === 'admin';
-        const timeFilter   = isAdmin ? document.getElementById('filter-timeframe').value : 'ALL';
+        const timeFilter   = isAdmin
+            ? document.getElementById('filter-timeframe').value
+            : document.getElementById('staff-filter-timeframe').value;
         const userFilter   = isAdmin ? document.getElementById('filter-user').value : sessionUser.username;
         const statusFilter = isAdmin
             ? document.getElementById('filter-status').value
@@ -1000,6 +1010,7 @@
         applyPipelineFilters();
     }
     function resetStaffFilter() {
+        document.getElementById('staff-filter-timeframe').value = 'DAY';
         document.getElementById('staff-filter-status').value = 'ALL';
         applyPipelineFilters();
     }
